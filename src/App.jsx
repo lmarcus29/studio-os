@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
-import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle } from 'lucide-react'
+import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle, Loader } from 'lucide-react'
 import { supabase } from './supabase.js'
 
 const TABS = [
@@ -14,77 +14,11 @@ const TABS = [
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
 ]
 
-const INITIAL_CLIENTS = [
-  { id: 1, name: 'Johnson Family', email: 'kjohnson@email.com', phone: '(312) 555-0182', status: 'Active', notes: 'Referral from Patricia Wells' },
-  { id: 2, name: 'Alex Chen', email: 'alex.chen@email.com', phone: '(312) 555-0247', status: 'Active', notes: 'Downtown loft renovation' },
-  { id: 3, name: 'Rivera Family', email: 'mrivera@email.com', phone: '(312) 555-0391', status: 'Active', notes: 'Master suite project' },
-  { id: 4, name: 'Patricia Wells', email: 'pwells@email.com', phone: '(312) 555-0104', status: 'Inactive', notes: 'Completed 3 projects' },
-]
-
-const INITIAL_PROJECTS = [
-  { id: 1, name: 'Riverside Living Room', clientId: 1, status: 'In Progress', budget: 18500, spent: 12300, notes: 'Focus on warm neutrals, sectional sofa key piece' },
-  { id: 2, name: 'Downtown Loft Kitchen', clientId: 2, status: 'Procurement', budget: 24000, spent: 8750, notes: 'Modern industrial look, open shelving' },
-  { id: 3, name: 'Suburban Master Suite', clientId: 3, status: 'Design Phase', budget: 11200, spent: 2100, notes: 'Soft palette, blackout curtains required' },
-  { id: 4, name: 'Lakefront Guest House', clientId: 1, status: 'Complete', budget: 31000, spent: 29800, notes: 'Coastal theme, completed March 2026' },
-]
-
-const INITIAL_VENDORS = [
-  { id: 1, name: 'RH (Restoration Hardware)', rep: 'James Holloway', email: 'jholloway@rh.com', phone: '(800) 762-1005', discount: '40% trade', notes: 'Trade account #RH-4421' },
-  { id: 2, name: 'Visual Comfort', rep: 'Sandra Lee', email: 'slee@visualcomfort.com', phone: '(713) 686-5999', discount: '35% trade', notes: 'Net 30 terms' },
-  { id: 3, name: 'Stark Carpet', rep: 'Tom Briggs', email: 'tbriggs@starkcarpet.com', phone: '(212) 752-9000', discount: '30% trade', notes: 'Requires 50% deposit on orders' },
-  { id: 4, name: 'Room & Board', rep: 'Lisa Park', email: 'lpark@roomandboard.com', phone: '(800) 301-9720', discount: '25% trade', notes: 'Lead times 8-12 weeks' },
-]
-
-const INITIAL_ITEMS = [
-  { id: 1, name: 'Sectional Sofa', projectId: 1, vendorId: 1, cost: 4200, status: 'Ordered', notes: 'Cloud sectional, ivory boucle' },
-  { id: 2, name: 'Pendant Lights x3', projectId: 2, vendorId: 2, cost: 1850, status: 'Arrived', notes: 'Aged brass finish' },
-  { id: 3, name: 'Area Rug 9x12', projectId: 1, vendorId: 3, cost: 2400, status: 'To Order', notes: 'Natural jute weave' },
-  { id: 4, name: 'King Bed Frame', projectId: 3, vendorId: 4, cost: 3100, status: 'Installed', notes: 'Walnut finish, upholstered headboard' },
-]
-
-const INITIAL_INVOICES = [
-  { id: 1, num: 'INV-1041', clientId: 4, projectId: 4, amount: 9100, due: '2026-02-28', status: 'Paid', notes: '' },
-  { id: 2, num: 'INV-1042', clientId: 1, projectId: 1, amount: 6500, due: '2026-03-15', status: 'Overdue', notes: 'Second reminder sent' },
-  { id: 3, num: 'INV-1043', clientId: 2, projectId: 2, amount: 3200, due: '2026-03-20', status: 'Pending', notes: '' },
-  { id: 4, num: 'INV-1044', clientId: 3, projectId: 3, amount: 2800, due: '2026-04-01', status: 'Pending', notes: '' },
-]
-
-const INITIAL_TASKS = [
-  { id: 1, title: 'Call Johnson re: sofa delay', priority: 'Today', done: false, projectId: 1, notes: '' },
-  { id: 2, title: 'Send invoice INV-1043', priority: 'Today', done: false, projectId: 2, notes: '' },
-  { id: 3, title: 'Order area rug — Stark', priority: 'Today', done: false, projectId: 1, notes: '' },
-  { id: 4, title: 'Site visit — Rivera master suite', priority: 'This Week', done: false, projectId: 3, notes: '' },
-  { id: 5, title: 'Finalize Chen kitchen layout', priority: 'This Week', done: false, projectId: 2, notes: '' },
-  { id: 6, title: 'Follow up Visual Comfort order', priority: 'This Week', done: false, projectId: 2, notes: '' },
-  { id: 7, title: 'Prepare Q2 project proposals', priority: 'Upcoming', done: false, projectId: null, notes: '' },
-  { id: 8, title: 'Update vendor discount terms', priority: 'Upcoming', done: false, projectId: null, notes: '' },
-]
-
-const INITIAL_EVENTS = [
-  { id: 1, title: 'Client Meeting — Johnson', date: '2026-03-14', type: 'Meeting', notes: '' },
-  { id: 2, title: 'Sofa Delivery — Riverside', date: '2026-03-18', type: 'Delivery', notes: 'Confirm with RH day before' },
-  { id: 3, title: 'Invoice Due — INV-1043', date: '2026-03-20', type: 'Billing', notes: '' },
-  { id: 4, title: 'Site Visit — Rivera Suite', date: '2026-03-25', type: 'Site Visit', notes: '' },
-]
-
 const PROJECT_STATUSES = ['Design Phase', 'Procurement', 'In Progress', 'On Hold', 'Complete']
 const ITEM_STATUSES = ['To Order', 'Ordered', 'Arrived', 'Installed', 'Delayed']
 const INVOICE_STATUSES = ['Pending', 'Paid', 'Overdue', 'Cancelled']
 const TASK_PRIORITIES = ['Today', 'This Week', 'Upcoming']
 const EVENT_TYPES = ['Meeting', 'Delivery', 'Site Visit', 'Billing', 'Other']
-
-function useLocalStorage(key, initial) {
-  const [value, setValue] = useState(() => {
-    try {
-      const stored = localStorage.getItem(key)
-      return stored ? JSON.parse(stored) : initial
-    } catch { return initial }
-  })
-  useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(value))
-  }, [key, value])
-  return [value, setValue]
-}
 
 // ── SHARED UI ────────────────────────────────────────────
 
@@ -99,12 +33,13 @@ function Field({ label, children }) {
   )
 }
 
-function ModalFooter({ onClose, onSave, valid, label }) {
+function ModalFooter({ onClose, onSave, valid, label, loading }) {
   return (
     <div className="flex gap-3 justify-end mt-6">
       <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
-      <button onClick={onSave} disabled={!valid}
-        className={`px-4 py-2 text-sm rounded-lg text-white ${valid ? 'bg-teal-600 hover:bg-teal-700' : 'bg-slate-300 cursor-not-allowed'}`}>
+      <button onClick={onSave} disabled={!valid || loading}
+        className={`px-4 py-2 text-sm rounded-lg text-white flex items-center gap-2 ${valid && !loading ? 'bg-teal-600 hover:bg-teal-700' : 'bg-slate-300 cursor-not-allowed'}`}>
+        {loading && <Loader size={14} className="animate-spin" />}
         {label}
       </button>
     </div>
@@ -134,7 +69,7 @@ function Actions({ onEdit, onDelete }) {
   )
 }
 
-function ConfirmDeleteModal({ name, onConfirm, onCancel }) {
+function ConfirmDeleteModal({ name, onConfirm, onCancel, loading }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
@@ -142,9 +77,21 @@ function ConfirmDeleteModal({ name, onConfirm, onCancel }) {
         <p className="text-sm text-slate-500 mb-6">Are you sure you want to delete <span className="font-medium text-slate-700">{name}</span>? This cannot be undone.</p>
         <div className="flex gap-3 justify-end">
           <button onClick={onCancel} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
-          <button onClick={onConfirm} className="px-4 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700">Delete</button>
+          <button onClick={onConfirm} disabled={loading}
+            className="px-4 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700 flex items-center gap-2 disabled:opacity-50">
+            {loading && <Loader size={14} className="animate-spin" />}
+            Delete
+          </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <Loader size={24} className="animate-spin text-teal-500" />
     </div>
   )
 }
@@ -203,8 +150,9 @@ function AuthScreen() {
         {error && <p className="mt-3 text-xs text-rose-600">{error}</p>}
         {message && <p className="mt-3 text-xs text-teal-600">{message}</p>}
         <button onClick={handleSubmit} disabled={loading}
-          className="mt-5 w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
-          {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Send Reset Email'}
+          className="mt-5 w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 flex items-center justify-center gap-2">
+          {loading && <Loader size={14} className="animate-spin" />}
+          {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Send Reset Email'}
         </button>
         <div className="mt-4 flex flex-col gap-2 text-center text-xs text-slate-400">
           {mode === 'login' && <>
@@ -224,13 +172,14 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [clients, setClients] = useLocalStorage('sos_v1_clients', INITIAL_CLIENTS)
-  const [projects, setProjects] = useLocalStorage('sos_v1_projects', INITIAL_PROJECTS)
-  const [vendors, setVendors] = useLocalStorage('sos_v1_vendors', INITIAL_VENDORS)
-  const [items, setItems] = useLocalStorage('sos_v1_items', INITIAL_ITEMS)
-  const [invoices, setInvoices] = useLocalStorage('sos_v1_invoices', INITIAL_INVOICES)
-  const [tasks, setTasks] = useLocalStorage('sos_v1_tasks', INITIAL_TASKS)
-  const [events, setEvents] = useLocalStorage('sos_v1_events', INITIAL_EVENTS)
+  const [clients, setClients] = useState([])
+  const [projects, setProjects] = useState([])
+  const [vendors, setVendors] = useState([])
+  const [items, setItems] = useState([])
+  const [invoices, setInvoices] = useState([])
+  const [tasks, setTasks] = useState([])
+  const [events, setEvents] = useState([])
+  const [dataLoading, setDataLoading] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -243,17 +192,42 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  const loadAll = useCallback(async () => {
+    setDataLoading(true)
+    const [c, p, v, i, inv, t, e] = await Promise.all([
+      supabase.from('clients').select('*').order('created_at'),
+      supabase.from('projects').select('*').order('created_at'),
+      supabase.from('vendors').select('*').order('created_at'),
+      supabase.from('items').select('*').order('created_at'),
+      supabase.from('invoices').select('*').order('created_at'),
+      supabase.from('tasks').select('*').order('created_at'),
+      supabase.from('events').select('*').order('created_at'),
+    ])
+    setClients(c.data || [])
+    setProjects(p.data || [])
+    setVendors(v.data || [])
+    setItems(i.data || [])
+    setInvoices(inv.data || [])
+    setTasks(t.data || [])
+    setEvents(e.data || [])
+    setDataLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (session) loadAll()
+  }, [session, loadAll])
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-400 text-sm">Loading...</div>
+        <Loader size={24} className="animate-spin text-teal-500" />
       </div>
     )
   }
 
   if (!session) return <AuthScreen />
 
-  const shared = { clients, projects, vendors, items, invoices, tasks, events }
+  const shared = { clients, projects, vendors, items, invoices, tasks, events, reload: loadAll }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -288,14 +262,16 @@ export default function App() {
       </nav>
 
       <main className="flex-1 p-6 overflow-auto">
-        {activeTab === 'dashboard' && <Dashboard {...shared} />}
-        {activeTab === 'clients' && <Clients clients={clients} setClients={setClients} />}
-        {activeTab === 'projects' && <Projects projects={projects} setProjects={setProjects} clients={clients} />}
-        {activeTab === 'items' && <Items items={items} setItems={setItems} projects={projects} vendors={vendors} />}
-        {activeTab === 'vendors' && <Vendors vendors={vendors} setVendors={setVendors} />}
-        {activeTab === 'invoices' && <Invoices invoices={invoices} setInvoices={setInvoices} clients={clients} projects={projects} />}
-        {activeTab === 'calendar' && <CalendarView events={events} setEvents={setEvents} />}
-        {activeTab === 'tasks' && <Tasks tasks={tasks} setTasks={setTasks} projects={projects} />}
+        {dataLoading ? <LoadingSpinner /> : <>
+          {activeTab === 'dashboard' && <Dashboard {...shared} />}
+          {activeTab === 'clients' && <Clients {...shared} />}
+          {activeTab === 'projects' && <Projects {...shared} />}
+          {activeTab === 'items' && <Items {...shared} />}
+          {activeTab === 'vendors' && <Vendors {...shared} />}
+          {activeTab === 'invoices' && <Invoices {...shared} />}
+          {activeTab === 'calendar' && <CalendarView {...shared} />}
+          {activeTab === 'tasks' && <Tasks {...shared} />}
+        </>}
       </main>
     </div>
   )
@@ -305,8 +281,9 @@ export default function App() {
 
 function ClientModal({ client, onSave, onClose }) {
   const [form, setForm] = useState(client || { name: '', email: '', phone: '', status: 'Active', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.name.trim() && form.email.trim()
+  const valid = form.name.trim()
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
@@ -316,7 +293,7 @@ function ClientModal({ client, onSave, onClose }) {
         </div>
         <div className="flex flex-col gap-4">
           <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Client or family name" className={inputClass} /></Field>
-          <Field label="Email *"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" className={inputClass} /></Field>
+          <Field label="Email"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" className={inputClass} /></Field>
           <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" className={inputClass} /></Field>
           <Field label="Status">
             <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
@@ -325,16 +302,17 @@ function ClientModal({ client, onSave, onClose }) {
           </Field>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Referral source, preferences…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={client ? 'Save Changes' : 'Add Client'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={client ? 'Save Changes' : 'Add Client'} />
       </div>
     </div>
   )
 }
 
 function ProjectModal({ project, clients, onSave, onClose }) {
-  const [form, setForm] = useState(project || { name: '', clientId: clients[0]?.id || '', status: 'Design Phase', budget: '', spent: '', notes: '' })
+  const [form, setForm] = useState(project || { name: '', client_id: clients[0]?.id || '', status: 'Design Phase', budget: '', spent: '', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.name.trim() && form.clientId
+  const valid = form.name.trim()
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
@@ -344,8 +322,9 @@ function ProjectModal({ project, clients, onSave, onClose }) {
         </div>
         <div className="flex flex-col gap-4">
           <Field label="Project Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Riverside Living Room" className={inputClass} /></Field>
-          <Field label="Client *">
-            <select value={form.clientId} onChange={e => set('clientId', Number(e.target.value))} className={inputClass}>
+          <Field label="Client">
+            <select value={form.client_id || ''} onChange={e => set('client_id', e.target.value)} className={inputClass}>
+              <option value="">— None —</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
@@ -360,7 +339,7 @@ function ProjectModal({ project, clients, onSave, onClose }) {
           </div>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Style notes, requirements…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={project ? 'Save Changes' : 'Add Project'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={project ? 'Save Changes' : 'Add Project'} />
       </div>
     </div>
   )
@@ -368,6 +347,7 @@ function ProjectModal({ project, clients, onSave, onClose }) {
 
 function VendorModal({ vendor, onSave, onClose }) {
   const [form, setForm] = useState(vendor || { name: '', rep: '', email: '', phone: '', discount: '', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
@@ -385,14 +365,15 @@ function VendorModal({ vendor, onSave, onClose }) {
           <Field label="Trade Discount"><input value={form.discount} onChange={e => set('discount', e.target.value)} placeholder="e.g. 40% trade" className={inputClass} /></Field>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Account numbers, payment terms…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={vendor ? 'Save Changes' : 'Add Vendor'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={vendor ? 'Save Changes' : 'Add Vendor'} />
       </div>
     </div>
   )
 }
 
 function ItemModal({ item, projects, vendors, onSave, onClose }) {
-  const [form, setForm] = useState(item || { name: '', projectId: projects[0]?.id || '', vendorId: vendors[0]?.id || '', cost: '', status: 'To Order', notes: '' })
+  const [form, setForm] = useState(item || { name: '', project_id: projects[0]?.id || '', vendor_id: vendors[0]?.id || '', cost: '', status: 'To Order', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
@@ -405,12 +386,14 @@ function ItemModal({ item, projects, vendors, onSave, onClose }) {
         <div className="flex flex-col gap-4">
           <Field label="Item Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Sectional Sofa" className={inputClass} /></Field>
           <Field label="Project">
-            <select value={form.projectId} onChange={e => set('projectId', Number(e.target.value))} className={inputClass}>
+            <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value)} className={inputClass}>
+              <option value="">— None —</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </Field>
           <Field label="Vendor">
-            <select value={form.vendorId} onChange={e => set('vendorId', Number(e.target.value))} className={inputClass}>
+            <select value={form.vendor_id || ''} onChange={e => set('vendor_id', e.target.value)} className={inputClass}>
+              <option value="">— None —</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
           </Field>
@@ -424,17 +407,17 @@ function ItemModal({ item, projects, vendors, onSave, onClose }) {
           </div>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Color, finish, dimensions…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={item ? 'Save Changes' : 'Add Item'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={item ? 'Save Changes' : 'Add Item'} />
       </div>
     </div>
   )
 }
 
 function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
-  const nextNum = `INV-${1045 + Math.floor(Math.random() * 100)}`
-  const [form, setForm] = useState(invoice || { num: nextNum, clientId: clients[0]?.id || '', projectId: projects[0]?.id || '', amount: '', due: '', status: 'Pending', notes: '' })
+  const [form, setForm] = useState(invoice || { num: '', client_id: clients[0]?.id || '', project_id: '', amount: '', due: '', status: 'Pending', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.num.trim() && form.clientId && form.amount
+  const valid = form.num.trim() && form.amount
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
@@ -444,20 +427,22 @@ function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
         </div>
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Invoice # *"><input value={form.num} onChange={e => set('num', e.target.value)} className={inputClass} /></Field>
+            <Field label="Invoice # *"><input value={form.num} onChange={e => set('num', e.target.value)} placeholder="INV-1001" className={inputClass} /></Field>
             <Field label="Status">
               <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
                 {INVOICE_STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </Field>
           </div>
-          <Field label="Client *">
-            <select value={form.clientId} onChange={e => set('clientId', Number(e.target.value))} className={inputClass}>
+          <Field label="Client">
+            <select value={form.client_id || ''} onChange={e => set('client_id', e.target.value)} className={inputClass}>
+              <option value="">— None —</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
           <Field label="Project">
-            <select value={form.projectId} onChange={e => set('projectId', Number(e.target.value))} className={inputClass}>
+            <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value)} className={inputClass}>
+              <option value="">— None —</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </Field>
@@ -467,14 +452,15 @@ function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
           </div>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Payment terms, notes…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={invoice ? 'Save Changes' : 'Create Invoice'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={invoice ? 'Save Changes' : 'Create Invoice'} />
       </div>
     </div>
   )
 }
 
 function TaskModal({ task, projects, onSave, onClose }) {
-  const [form, setForm] = useState(task || { title: '', priority: 'Today', done: false, projectId: '', notes: '' })
+  const [form, setForm] = useState(task || { title: '', priority: 'Today', done: false, project_id: '', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.title.trim()
   return (
@@ -492,14 +478,14 @@ function TaskModal({ task, projects, onSave, onClose }) {
             </select>
           </Field>
           <Field label="Project (optional)">
-            <select value={form.projectId} onChange={e => set('projectId', e.target.value ? Number(e.target.value) : '')} className={inputClass}>
+            <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value || null)} className={inputClass}>
               <option value="">— None —</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </Field>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Additional details…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={task ? 'Save Changes' : 'Add Task'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={task ? 'Save Changes' : 'Add Task'} />
       </div>
     </div>
   )
@@ -507,6 +493,7 @@ function TaskModal({ task, projects, onSave, onClose }) {
 
 function EventModal({ event, onSave, onClose }) {
   const [form, setForm] = useState(event || { title: '', date: '', type: 'Meeting', notes: '' })
+  const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.title.trim() && form.date
   return (
@@ -528,7 +515,7 @@ function EventModal({ event, onSave, onClose }) {
           </div>
           <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Location, details…" className={inputClass} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={event ? 'Save Changes' : 'Add Event'} />
+        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={event ? 'Save Changes' : 'Add Event'} />
       </div>
     </div>
   )
@@ -559,45 +546,66 @@ function Dashboard({ clients, projects, invoices, tasks }) {
       </div>
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="text-lg font-semibold text-slate-700 mb-4">Active Projects</h3>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-slate-500 border-b border-slate-100">
-              <th className="pb-2 font-medium">Project</th>
-              <th className="pb-2 font-medium">Client</th>
-              <th className="pb-2 font-medium">Status</th>
-              <th className="pb-2 font-medium">Budget</th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.filter(p => p.status !== 'Complete').slice(0, 5).map(p => (
-              <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="py-3 font-medium text-slate-800">{p.name}</td>
-                <td className="py-3 text-slate-500">{clients.find(c => c.id === p.clientId)?.name || '—'}</td>
-                <td className="py-3"><Badge status={p.status} /></td>
-                <td className="py-3 text-slate-600">${p.budget.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {projects.filter(p => p.status !== 'Complete').length === 0
+          ? <p className="text-slate-400 text-sm py-4 text-center">No active projects yet</p>
+          : <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500 border-b border-slate-100">
+                  <th className="pb-2 font-medium">Project</th>
+                  <th className="pb-2 font-medium">Client</th>
+                  <th className="pb-2 font-medium">Status</th>
+                  <th className="pb-2 font-medium">Budget</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.filter(p => p.status !== 'Complete').slice(0, 5).map(p => (
+                  <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
+                    <td className="py-3 font-medium text-slate-800">{p.name}</td>
+                    <td className="py-3 text-slate-500">{clients.find(c => c.id === p.client_id)?.name || '—'}</td>
+                    <td className="py-3"><Badge status={p.status} /></td>
+                    <td className="py-3 text-slate-600">${Number(p.budget).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+        }
       </div>
     </div>
   )
 }
 
-function Clients({ clients, setClients }) {
+function Clients({ clients, reload }) {
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase()) ||
-    c.status.toLowerCase().includes(search.toLowerCase())
+    (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
+    (c.status || '').toLowerCase().includes(search.toLowerCase())
   )
-  function handleSave(form) {
-    if (modal === 'add') setClients(p => [...p, { ...form, id: Date.now() }])
-    else setClients(p => p.map(c => c.id === modal.id ? { ...modal, ...form } : c))
-    setModal(null)
+
+async function handleSave(form, setLoading) {
+  setLoading(true)
+  const user_id = (await supabase.auth.getUser()).data.user.id
+  if (modal === 'add') {
+    await supabase.from('clients').insert({ ...form, user_id })
+  } else {
+    await supabase.from('clients').update({ ...form }).eq('id', modal.id)
   }
+  setLoading(false)
+  setModal(null)
+  reload()
+}
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('clients').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -614,7 +622,7 @@ function Clients({ clients, setClients }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No clients found</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No clients yet — add your first one!</td></tr>}
             {filtered.map(c => (
               <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium">{c.name}</td>
@@ -629,26 +637,42 @@ function Clients({ clients, setClients }) {
         </table>
       </div>
       {modal && <ClientModal client={modal === 'add' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={() => { setClients(p => p.filter(c => c.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
 
-function Projects({ projects, setProjects, clients }) {
+function Projects({ projects, clients, reload }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const filtered = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) &&
     (statusFilter === 'All' || p.status === statusFilter)
   )
-  function handleSave(form) {
-    const p = { ...form, budget: Number(form.budget) || 0, spent: Number(form.spent) || 0 }
-    if (modal === 'add') setProjects(prev => [...prev, { ...p, id: Date.now() }])
-    else setProjects(prev => prev.map(x => x.id === modal.id ? { ...modal, ...p } : x))
+
+  async function handleSave(form, setLoading) {
+    setLoading(true)
+    const data = { ...form, budget: Number(form.budget) || 0, spent: Number(form.spent) || 0 }
+   const user_id = (await supabase.auth.getUser()).data.user.id
+if (modal === 'add') await supabase.from('projects').insert({ ...data, user_id })
+    else await supabase.from('projects').update(data).eq('id', modal.id)
+    setLoading(false)
     setModal(null)
+    reload()
   }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('projects').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -665,7 +689,7 @@ function Projects({ projects, setProjects, clients }) {
         </select>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {filtered.length === 0 && <div className="col-span-3 text-center py-16 text-slate-400">No projects found</div>}
+        {filtered.length === 0 && <div className="col-span-3 text-center py-16 text-slate-400">No projects yet</div>}
         {filtered.map(p => {
           const pct = p.budget ? Math.min(100, Math.round((p.spent / p.budget) * 100)) : 0
           const over = p.spent > p.budget && p.budget > 0
@@ -675,12 +699,12 @@ function Projects({ projects, setProjects, clients }) {
                 <h3 className="font-semibold text-slate-800 pr-2">{p.name}</h3>
                 <Badge status={p.status} />
               </div>
-              <p className="text-sm text-slate-500 mb-4">{clients.find(c => c.id === p.clientId)?.name || '—'}</p>
+              <p className="text-sm text-slate-500 mb-4">{clients.find(c => c.id === p.client_id)?.name || '—'}</p>
               {p.budget > 0 && (
                 <div className="mb-3">
                   <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Budget: <span className="font-medium text-slate-700">${p.budget.toLocaleString()}</span></span>
-                    <span className={over ? 'text-rose-600 font-medium' : ''}>Spent: ${p.spent.toLocaleString()}{over && ' ⚠️'}</span>
+                    <span>Budget: <span className="font-medium text-slate-700">${Number(p.budget).toLocaleString()}</span></span>
+                    <span className={over ? 'text-rose-600 font-medium' : ''}>Spent: ${Number(p.spent).toLocaleString()}{over && ' ⚠️'}</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-1.5">
                     <div className={`h-1.5 rounded-full ${over ? 'bg-rose-400' : pct > 80 ? 'bg-amber-400' : 'bg-teal-500'}`} style={{ width: `${pct}%` }} />
@@ -696,21 +720,40 @@ function Projects({ projects, setProjects, clients }) {
         })}
       </div>
       {modal && <ProjectModal project={modal === 'add' ? null : modal} clients={clients} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={() => { setProjects(p => p.filter(x => x.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
 
-function Vendors({ vendors, setVendors }) {
+function Vendors({ vendors, reload }) {
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const filtered = vendors.filter(v => v.name.toLowerCase().includes(search.toLowerCase()) || v.rep.toLowerCase().includes(search.toLowerCase()))
-  function handleSave(form) {
-    if (modal === 'add') setVendors(p => [...p, { ...form, id: Date.now() }])
-    else setVendors(p => p.map(v => v.id === modal.id ? { ...modal, ...form } : v))
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const filtered = vendors.filter(v =>
+    v.name.toLowerCase().includes(search.toLowerCase()) ||
+    (v.rep || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  async function handleSave(form, setLoading) {
+    setLoading(true)
+   const user_id = (await supabase.auth.getUser()).data.user.id
+if (modal === 'add') await supabase.from('vendors').insert({ ...form, user_id })
+    else await supabase.from('vendors').update(form).eq('id', modal.id)
+    setLoading(false)
     setModal(null)
+    reload()
   }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('vendors').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -720,7 +763,7 @@ function Vendors({ vendors, setVendors }) {
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search vendors…"
         className="mb-5 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-72" />
       <div className="grid grid-cols-3 gap-4">
-        {filtered.length === 0 && <div className="col-span-3 text-center py-16 text-slate-400">No vendors found</div>}
+        {filtered.length === 0 && <div className="col-span-3 text-center py-16 text-slate-400">No vendors yet</div>}
         {filtered.map(v => (
           <div key={v.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-2">
@@ -735,26 +778,42 @@ function Vendors({ vendors, setVendors }) {
         ))}
       </div>
       {modal && <VendorModal vendor={modal === 'add' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={() => { setVendors(p => p.filter(v => v.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
 
-function Items({ items, setItems, projects, vendors }) {
+function Items({ items, projects, vendors, reload }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const filtered = items.filter(i =>
     i.name.toLowerCase().includes(search.toLowerCase()) &&
     (statusFilter === 'All' || i.status === statusFilter)
   )
-  function handleSave(form) {
-    const item = { ...form, cost: Number(form.cost) || 0 }
-    if (modal === 'add') setItems(p => [...p, { ...item, id: Date.now() }])
-    else setItems(p => p.map(x => x.id === modal.id ? { ...modal, ...item } : x))
+
+  async function handleSave(form, setLoading) {
+    setLoading(true)
+    const data = { ...form, cost: Number(form.cost) || 0 }
+    const user_id = (await supabase.auth.getUser()).data.user.id
+if (modal === 'add') await supabase.from('items').insert({ ...data, user_id })
+    else await supabase.from('items').update(data).eq('id', modal.id)
+    setLoading(false)
     setModal(null)
+    reload()
   }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('items').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -778,13 +837,13 @@ function Items({ items, setItems, projects, vendors }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No items found</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No items yet</td></tr>}
             {filtered.map(i => (
               <tr key={i.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium">{i.name}</td>
-                <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.projectId)?.name || '—'}</td>
-                <td className="px-5 py-3 text-slate-500">{vendors.find(v => v.id === i.vendorId)?.name || '—'}</td>
-                <td className="px-5 py-3">${i.cost.toLocaleString()}</td>
+                <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
+                <td className="px-5 py-3 text-slate-500">{vendors.find(v => v.id === i.vendor_id)?.name || '—'}</td>
+                <td className="px-5 py-3">${Number(i.cost).toLocaleString()}</td>
                 <td className="px-5 py-3"><Badge status={i.status} /></td>
                 <td className="px-5 py-3"><Actions onEdit={() => setModal(i)} onDelete={() => setDeleteTarget(i)} /></td>
               </tr>
@@ -793,28 +852,47 @@ function Items({ items, setItems, projects, vendors }) {
         </table>
       </div>
       {modal && <ItemModal item={modal === 'add' ? null : modal} projects={projects} vendors={vendors} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={() => { setItems(p => p.filter(x => x.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.name} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
 
-function Invoices({ invoices, setInvoices, clients, projects }) {
+function Invoices({ invoices, clients, projects, reload }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const filtered = invoices.filter(i =>
     (i.num.toLowerCase().includes(search.toLowerCase()) ||
-    (clients.find(c => c.id === i.clientId)?.name || '').toLowerCase().includes(search.toLowerCase())) &&
+    (clients.find(c => c.id === i.client_id)?.name || '').toLowerCase().includes(search.toLowerCase())) &&
     (statusFilter === 'All' || i.status === statusFilter)
   )
-  function handleSave(form) {
-    const inv = { ...form, amount: Number(form.amount) || 0 }
-    if (modal === 'add') setInvoices(p => [...p, { ...inv, id: Date.now() }])
-    else setInvoices(p => p.map(x => x.id === modal.id ? { ...modal, ...inv } : x))
+
+  async function handleSave(form, setLoading) {
+    setLoading(true)
+    const data = { ...form, amount: Number(form.amount) || 0, due: form.due || null, project_id: form.project_id || null, client_id: form.client_id || null }
+   const user_id = (await supabase.auth.getUser()).data.user.id
+if (modal === 'add') await supabase.from('invoices').insert({ ...data, user_id })
+    else await supabase.from('invoices').update(data).eq('id', modal.id)
+    setLoading(false)
     setModal(null)
+    reload()
   }
-  const totalOutstanding = invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue').reduce((sum, i) => sum + Number(i.amount), 0)
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('invoices').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
+  const totalOutstanding = invoices
+    .filter(i => i.status === 'Pending' || i.status === 'Overdue')
+    .reduce((sum, i) => sum + Number(i.amount), 0)
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -844,12 +922,12 @@ function Invoices({ invoices, setInvoices, clients, projects }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">No invoices found</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">No invoices yet</td></tr>}
             {filtered.map(i => (
               <tr key={i.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium">{i.num}</td>
-                <td className="px-5 py-3 text-slate-500">{clients.find(c => c.id === i.clientId)?.name || '—'}</td>
-                <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.projectId)?.name || '—'}</td>
+                <td className="px-5 py-3 text-slate-500">{clients.find(c => c.id === i.client_id)?.name || '—'}</td>
+                <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
                 <td className="px-5 py-3 font-medium">${Number(i.amount).toLocaleString()}</td>
                 <td className="px-5 py-3 text-slate-500">{i.due ? new Date(i.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                 <td className="px-5 py-3"><Badge status={i.status} /></td>
@@ -860,22 +938,39 @@ function Invoices({ invoices, setInvoices, clients, projects }) {
         </table>
       </div>
       {modal && <InvoiceModal invoice={modal === 'add' ? null : modal} clients={clients} projects={projects} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.num} onConfirm={() => { setInvoices(p => p.filter(x => x.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.num} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
 
-function Tasks({ tasks, setTasks, projects }) {
+function Tasks({ tasks, projects, reload }) {
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  function handleSave(form) {
-    if (modal === 'add') setTasks(p => [...p, { ...form, id: Date.now() }])
-    else setTasks(p => p.map(t => t.id === modal.id ? { ...modal, ...form } : t))
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  async function handleSave(form, setLoading) {
+    setLoading(true)
+    const user_id = (await supabase.auth.getUser()).data.user.id
+if (modal === 'add') await supabase.from('tasks').insert({ ...form, user_id })
+    else await supabase.from('tasks').update(form).eq('id', modal.id)
+    setLoading(false)
     setModal(null)
+    reload()
   }
-  function toggleDone(id) {
-    setTasks(p => p.map(t => t.id === id ? { ...t, done: !t.done } : t))
+
+  async function toggleDone(task) {
+    await supabase.from('tasks').update({ done: !task.done }).eq('id', task.id)
+    reload()
   }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('tasks').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -896,7 +991,7 @@ function Tasks({ tasks, setTasks, projects }) {
                 {ptasks.length === 0 && <p className="text-xs text-slate-400 py-2">No tasks</p>}
                 {ptasks.map(t => (
                   <div key={t.id} className="flex items-start gap-2 group">
-                    <button onClick={() => toggleDone(t.id)}
+                    <button onClick={() => toggleDone(t)}
                       className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${t.done ? 'bg-teal-500 border-teal-500' : 'border-slate-300'}`}>
                       {t.done && <span className="text-white text-xs">✓</span>}
                     </button>
@@ -913,34 +1008,52 @@ function Tasks({ tasks, setTasks, projects }) {
         })}
       </div>
       {modal && <TaskModal task={modal === 'add' ? null : modal} projects={projects} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={() => { setTasks(p => p.filter(t => t.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
 
-function CalendarView({ events, setEvents }) {
+function CalendarView({ events, reload }) {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const today = new Date()
+
   function eventsOnDay(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     return events.filter(e => e.date === dateStr)
   }
-  function handleSave(form) {
-    if (modal === 'add') setEvents(p => [...p, { ...form, id: Date.now() }])
-    else setEvents(p => p.map(e => e.id === modal.id ? { ...modal, ...form } : e))
+
+  async function handleSave(form, setLoading) {
+    setLoading(true)
+   const user_id = (await supabase.auth.getUser()).data.user.id
+if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
+    else await supabase.from('events').update(form).eq('id', modal.id)
+    setLoading(false)
     setModal(null)
+    reload()
   }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    await supabase.from('events').delete().eq('id', deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    reload()
+  }
+
   const typeColors = {
     Meeting: 'bg-amber-100 text-amber-700', Delivery: 'bg-teal-100 text-teal-700',
     'Site Visit': 'bg-blue-100 text-blue-700', Billing: 'bg-rose-100 text-rose-700', Other: 'bg-slate-100 text-slate-600'
   }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -978,7 +1091,7 @@ function CalendarView({ events, setEvents }) {
         </div>
       </div>
       {modal && <EventModal event={modal === 'add' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
-      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={() => { setEvents(p => p.filter(e => e.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
+      {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
 }
