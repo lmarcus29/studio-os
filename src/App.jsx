@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import React from 'react'
 import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle } from 'lucide-react'
+import { supabase } from './supabase.js'
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -85,263 +86,15 @@ function useLocalStorage(key, initial) {
   return [value, setValue]
 }
 
-function ConfirmDeleteModal({ name, onConfirm, onCancel }) {
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-        <h3 className="text-lg font-semibold text-slate-800 mb-2">Confirm Delete</h3>
-        <p className="text-sm text-slate-500 mb-6">Are you sure you want to delete <span className="font-medium text-slate-700">{name}</span>? This cannot be undone.</p>
-        <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
-          <button onClick={onConfirm} className="px-4 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700">Delete</button>
-        </div>
-      </div>
-    </div>
-  )
-}
+// ── SHARED UI ────────────────────────────────────────────
 
-// ── MODALS ──────────────────────────────────────────────
-
-function ClientModal({ client, onSave, onClose }) {
-  const [form, setForm] = useState(client || { name: '', email: '', phone: '', status: 'Active', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.name.trim() && form.email.trim()
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{client ? 'Edit Client' : 'Add Client'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Client or family name" /></Field>
-          <Field label="Email *"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" /></Field>
-          <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" /></Field>
-          <Field label="Status">
-            <select value={form.status} onChange={e => set('status', e.target.value)}>
-              {['Active','Inactive','Lead'].map(s => <option key={s}>{s}</option>)}
-            </select>
-          </Field>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Referral source, preferences…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={client ? 'Save Changes' : 'Add Client'} />
-      </div>
-    </div>
-  )
-}
-
-function ProjectModal({ project, clients, onSave, onClose }) {
-  const [form, setForm] = useState(project || { name: '', clientId: clients[0]?.id || '', status: 'Design Phase', budget: '', spent: '', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.name.trim() && form.clientId
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{project ? 'Edit Project' : 'Add Project'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Project Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Riverside Living Room" /></Field>
-          <Field label="Client *">
-            <select value={form.clientId} onChange={e => set('clientId', Number(e.target.value))}>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Status">
-            <select value={form.status} onChange={e => set('status', e.target.value)}>
-              {PROJECT_STATUSES.map(s => <option key={s}>{s}</option>)}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Budget ($)"><input type="number" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="0" /></Field>
-            <Field label="Spent ($)"><input type="number" value={form.spent} onChange={e => set('spent', e.target.value)} placeholder="0" /></Field>
-          </div>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Style notes, requirements…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={project ? 'Save Changes' : 'Add Project'} />
-      </div>
-    </div>
-  )
-}
-
-function VendorModal({ vendor, onSave, onClose }) {
-  const [form, setForm] = useState(vendor || { name: '', rep: '', email: '', phone: '', discount: '', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.name.trim()
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{vendor ? 'Edit Vendor' : 'Add Vendor'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Vendor Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. RH, Visual Comfort" /></Field>
-          <Field label="Rep Name"><input value={form.rep} onChange={e => set('rep', e.target.value)} placeholder="Sales rep name" /></Field>
-          <Field label="Email"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="rep@vendor.com" /></Field>
-          <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" /></Field>
-          <Field label="Trade Discount"><input value={form.discount} onChange={e => set('discount', e.target.value)} placeholder="e.g. 40% trade" /></Field>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Account numbers, payment terms…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={vendor ? 'Save Changes' : 'Add Vendor'} />
-      </div>
-    </div>
-  )
-}
-
-function ItemModal({ item, projects, vendors, onSave, onClose }) {
-  const [form, setForm] = useState(item || { name: '', projectId: projects[0]?.id || '', vendorId: vendors[0]?.id || '', cost: '', status: 'To Order', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.name.trim()
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{item ? 'Edit Item' : 'Add Item'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Item Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Sectional Sofa" /></Field>
-          <Field label="Project">
-            <select value={form.projectId} onChange={e => set('projectId', Number(e.target.value))}>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Vendor">
-            <select value={form.vendorId} onChange={e => set('vendorId', Number(e.target.value))}>
-              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Cost ($)"><input type="number" value={form.cost} onChange={e => set('cost', e.target.value)} placeholder="0" /></Field>
-            <Field label="Status">
-              <select value={form.status} onChange={e => set('status', e.target.value)}>
-                {ITEM_STATUSES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Color, finish, dimensions…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={item ? 'Save Changes' : 'Add Item'} />
-      </div>
-    </div>
-  )
-}
-
-function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
-  const nextNum = `INV-${1045 + Math.floor(Math.random() * 100)}`
-  const [form, setForm] = useState(invoice || { num: nextNum, clientId: clients[0]?.id || '', projectId: projects[0]?.id || '', amount: '', due: '', status: 'Pending', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.num.trim() && form.clientId && form.amount
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{invoice ? 'Edit Invoice' : 'New Invoice'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Invoice # *"><input value={form.num} onChange={e => set('num', e.target.value)} /></Field>
-            <Field label="Status">
-              <select value={form.status} onChange={e => set('status', e.target.value)}>
-                {INVOICE_STATUSES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="Client *">
-            <select value={form.clientId} onChange={e => set('clientId', Number(e.target.value))}>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Project">
-            <select value={form.projectId} onChange={e => set('projectId', Number(e.target.value))}>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Amount ($) *"><input type="number" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" /></Field>
-            <Field label="Due Date"><input type="date" value={form.due} onChange={e => set('due', e.target.value)} /></Field>
-          </div>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Payment terms, notes…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={invoice ? 'Save Changes' : 'Create Invoice'} />
-      </div>
-    </div>
-  )
-}
-
-function TaskModal({ task, projects, onSave, onClose }) {
-  const [form, setForm] = useState(task || { title: '', priority: 'Today', done: false, projectId: '', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.title.trim()
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{task ? 'Edit Task' : 'Add Task'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Task *"><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="What needs to be done?" /></Field>
-          <Field label="Priority">
-            <select value={form.priority} onChange={e => set('priority', e.target.value)}>
-              {TASK_PRIORITIES.map(p => <option key={p}>{p}</option>)}
-            </select>
-          </Field>
-          <Field label="Project (optional)">
-            <select value={form.projectId} onChange={e => set('projectId', e.target.value ? Number(e.target.value) : '')}>
-              <option value="">— None —</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Additional details…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={task ? 'Save Changes' : 'Add Task'} />
-      </div>
-    </div>
-  )
-}
-
-function EventModal({ event, onSave, onClose }) {
-  const [form, setForm] = useState(event || { title: '', date: '', type: 'Meeting', notes: '' })
-  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.title.trim() && form.date
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{event ? 'Edit Event' : 'Add Event'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Title *"><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Event title" /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Date *"><input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></Field>
-            <Field label="Type">
-              <select value={form.type} onChange={e => set('type', e.target.value)}>
-                {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Location, details…" /></Field>
-        </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={event ? 'Save Changes' : 'Add Event'} />
-      </div>
-    </div>
-  )
-}
-
-// ── SHARED UI HELPERS ────────────────────────────────────
+const inputClass = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500'
 
 function Field({ label, children }) {
   return (
     <div>
       <label className="text-xs font-medium text-slate-500 mb-1 block">{label}</label>
-      {React.cloneElement(children, {
-        className: 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none'
-      })}
+      {children}
     </div>
   )
 }
@@ -372,9 +125,104 @@ function Badge({ status }) {
   return <span className={`px-2 py-1 rounded-full text-xs ${colors[status] || 'bg-slate-100 text-slate-500'}`}>{status}</span>
 }
 
+function Actions({ onEdit, onDelete }) {
+  return (
+    <div className="flex gap-2 justify-end">
+      <button onClick={onEdit} className="text-slate-400 hover:text-teal-600"><Pencil size={15} /></button>
+      <button onClick={onDelete} className="text-slate-400 hover:text-rose-600"><Trash2 size={15} /></button>
+    </div>
+  )
+}
+
+function ConfirmDeleteModal({ name, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+        <h3 className="text-lg font-semibold text-slate-800 mb-2">Confirm Delete</h3>
+        <p className="text-sm text-slate-500 mb-6">Are you sure you want to delete <span className="font-medium text-slate-700">{name}</span>? This cannot be undone.</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+          <button onClick={onConfirm} className="px-4 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── AUTH ─────────────────────────────────────────────────
+
+function AuthScreen() {
+  const [mode, setMode] = useState('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit() {
+    setError('')
+    setMessage('')
+    setLoading(true)
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError(error.message)
+    } else if (mode === 'signup') {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) setError(error.message)
+      else setMessage('Check your email to confirm your account.')
+    } else {
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      if (error) setError(error.message)
+      else setMessage('Password reset email sent.')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold text-teal-800">Studio OS</h1>
+          <p className="text-sm text-slate-400 mt-1">Interior Design Management</p>
+        </div>
+        <h2 className="text-lg font-semibold text-slate-700 mb-5">
+          {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Reset Password'}
+        </h2>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Email</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="you@example.com" className={inputClass} />
+          </div>
+          {mode !== 'reset' && (
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Password</label>
+              <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="••••••••" className={inputClass} />
+            </div>
+          )}
+        </div>
+        {error && <p className="mt-3 text-xs text-rose-600">{error}</p>}
+        {message && <p className="mt-3 text-xs text-teal-600">{message}</p>}
+        <button onClick={handleSubmit} disabled={loading}
+          className="mt-5 w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+          {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Send Reset Email'}
+        </button>
+        <div className="mt-4 flex flex-col gap-2 text-center text-xs text-slate-400">
+          {mode === 'login' && <>
+            <button onClick={() => setMode('signup')} className="hover:text-teal-600">Don't have an account? Sign up</button>
+            <button onClick={() => setMode('reset')} className="hover:text-teal-600">Forgot password?</button>
+          </>}
+          {mode !== 'login' && <button onClick={() => setMode('login')} className="hover:text-teal-600">Back to sign in</button>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── APP ROOT ─────────────────────────────────────────────
 
 export default function App() {
+  const [session, setSession] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [clients, setClients] = useLocalStorage('sos_v1_clients', INITIAL_CLIENTS)
   const [projects, setProjects] = useLocalStorage('sos_v1_projects', INITIAL_PROJECTS)
@@ -383,6 +231,27 @@ export default function App() {
   const [invoices, setInvoices] = useLocalStorage('sos_v1_invoices', INITIAL_INVOICES)
   const [tasks, setTasks] = useLocalStorage('sos_v1_tasks', INITIAL_TASKS)
   const [events, setEvents] = useLocalStorage('sos_v1_events', INITIAL_EVENTS)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setAuthLoading(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-400 text-sm">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!session) return <AuthScreen />
 
   const shared = { clients, projects, vendors, items, invoices, tasks, events }
 
@@ -393,11 +262,20 @@ export default function App() {
           <span className="text-xl font-semibold tracking-wide">Studio OS</span>
           <span className="text-teal-300 text-sm">Interior Design Management</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-teal-900 font-bold text-sm">SM</div>
-          <span className="text-sm text-teal-100">Sarah Mitchell</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-teal-900 font-bold text-sm">
+              {session.user.email.substring(0, 2).toUpperCase()}
+            </div>
+            <span className="text-sm text-teal-100">{session.user.email}</span>
+          </div>
+          <button onClick={() => supabase.auth.signOut()}
+            className="text-xs text-teal-300 hover:text-white border border-teal-600 px-3 py-1 rounded-lg">
+            Sign Out
+          </button>
         </div>
       </header>
+
       <nav className="bg-white border-b border-slate-200 px-4 flex gap-1 flex-shrink-0 shadow-sm">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setActiveTab(id)}
@@ -408,6 +286,7 @@ export default function App() {
           </button>
         ))}
       </nav>
+
       <main className="flex-1 p-6 overflow-auto">
         {activeTab === 'dashboard' && <Dashboard {...shared} />}
         {activeTab === 'clients' && <Clients clients={clients} setClients={setClients} />}
@@ -418,6 +297,239 @@ export default function App() {
         {activeTab === 'calendar' && <CalendarView events={events} setEvents={setEvents} />}
         {activeTab === 'tasks' && <Tasks tasks={tasks} setTasks={setTasks} projects={projects} />}
       </main>
+    </div>
+  )
+}
+
+// ── MODALS ───────────────────────────────────────────────
+
+function ClientModal({ client, onSave, onClose }) {
+  const [form, setForm] = useState(client || { name: '', email: '', phone: '', status: 'Active', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.name.trim() && form.email.trim()
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{client ? 'Edit Client' : 'Add Client'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Client or family name" className={inputClass} /></Field>
+          <Field label="Email *"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" className={inputClass} /></Field>
+          <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" className={inputClass} /></Field>
+          <Field label="Status">
+            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
+              {['Active','Inactive','Lead'].map(s => <option key={s}>{s}</option>)}
+            </select>
+          </Field>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Referral source, preferences…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={client ? 'Save Changes' : 'Add Client'} />
+      </div>
+    </div>
+  )
+}
+
+function ProjectModal({ project, clients, onSave, onClose }) {
+  const [form, setForm] = useState(project || { name: '', clientId: clients[0]?.id || '', status: 'Design Phase', budget: '', spent: '', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.name.trim() && form.clientId
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{project ? 'Edit Project' : 'Add Project'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Field label="Project Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Riverside Living Room" className={inputClass} /></Field>
+          <Field label="Client *">
+            <select value={form.clientId} onChange={e => set('clientId', Number(e.target.value))} className={inputClass}>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Status">
+            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
+              {PROJECT_STATUSES.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Budget ($)"><input type="number" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="0" className={inputClass} /></Field>
+            <Field label="Spent ($)"><input type="number" value={form.spent} onChange={e => set('spent', e.target.value)} placeholder="0" className={inputClass} /></Field>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Style notes, requirements…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={project ? 'Save Changes' : 'Add Project'} />
+      </div>
+    </div>
+  )
+}
+
+function VendorModal({ vendor, onSave, onClose }) {
+  const [form, setForm] = useState(vendor || { name: '', rep: '', email: '', phone: '', discount: '', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.name.trim()
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{vendor ? 'Edit Vendor' : 'Add Vendor'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Field label="Vendor Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. RH, Visual Comfort" className={inputClass} /></Field>
+          <Field label="Rep Name"><input value={form.rep} onChange={e => set('rep', e.target.value)} placeholder="Sales rep name" className={inputClass} /></Field>
+          <Field label="Email"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="rep@vendor.com" className={inputClass} /></Field>
+          <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" className={inputClass} /></Field>
+          <Field label="Trade Discount"><input value={form.discount} onChange={e => set('discount', e.target.value)} placeholder="e.g. 40% trade" className={inputClass} /></Field>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Account numbers, payment terms…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={vendor ? 'Save Changes' : 'Add Vendor'} />
+      </div>
+    </div>
+  )
+}
+
+function ItemModal({ item, projects, vendors, onSave, onClose }) {
+  const [form, setForm] = useState(item || { name: '', projectId: projects[0]?.id || '', vendorId: vendors[0]?.id || '', cost: '', status: 'To Order', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.name.trim()
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{item ? 'Edit Item' : 'Add Item'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Field label="Item Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Sectional Sofa" className={inputClass} /></Field>
+          <Field label="Project">
+            <select value={form.projectId} onChange={e => set('projectId', Number(e.target.value))} className={inputClass}>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Vendor">
+            <select value={form.vendorId} onChange={e => set('vendorId', Number(e.target.value))} className={inputClass}>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cost ($)"><input type="number" value={form.cost} onChange={e => set('cost', e.target.value)} placeholder="0" className={inputClass} /></Field>
+            <Field label="Status">
+              <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
+                {ITEM_STATUSES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Color, finish, dimensions…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={item ? 'Save Changes' : 'Add Item'} />
+      </div>
+    </div>
+  )
+}
+
+function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
+  const nextNum = `INV-${1045 + Math.floor(Math.random() * 100)}`
+  const [form, setForm] = useState(invoice || { num: nextNum, clientId: clients[0]?.id || '', projectId: projects[0]?.id || '', amount: '', due: '', status: 'Pending', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.num.trim() && form.clientId && form.amount
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{invoice ? 'Edit Invoice' : 'New Invoice'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Invoice # *"><input value={form.num} onChange={e => set('num', e.target.value)} className={inputClass} /></Field>
+            <Field label="Status">
+              <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
+                {INVOICE_STATUSES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Client *">
+            <select value={form.clientId} onChange={e => set('clientId', Number(e.target.value))} className={inputClass}>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Project">
+            <select value={form.projectId} onChange={e => set('projectId', Number(e.target.value))} className={inputClass}>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Amount ($) *"><input type="number" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" className={inputClass} /></Field>
+            <Field label="Due Date"><input type="date" value={form.due} onChange={e => set('due', e.target.value)} className={inputClass} /></Field>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Payment terms, notes…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={invoice ? 'Save Changes' : 'Create Invoice'} />
+      </div>
+    </div>
+  )
+}
+
+function TaskModal({ task, projects, onSave, onClose }) {
+  const [form, setForm] = useState(task || { title: '', priority: 'Today', done: false, projectId: '', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.title.trim()
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{task ? 'Edit Task' : 'Add Task'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Field label="Task *"><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="What needs to be done?" className={inputClass} /></Field>
+          <Field label="Priority">
+            <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inputClass}>
+              {TASK_PRIORITIES.map(p => <option key={p}>{p}</option>)}
+            </select>
+          </Field>
+          <Field label="Project (optional)">
+            <select value={form.projectId} onChange={e => set('projectId', e.target.value ? Number(e.target.value) : '')} className={inputClass}>
+              <option value="">— None —</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Additional details…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={task ? 'Save Changes' : 'Add Task'} />
+      </div>
+    </div>
+  )
+}
+
+function EventModal({ event, onSave, onClose }) {
+  const [form, setForm] = useState(event || { title: '', date: '', type: 'Meeting', notes: '' })
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.title.trim() && form.date
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-slate-800">{event ? 'Edit Event' : 'Add Event'}</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Field label="Title *"><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Event title" className={inputClass} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Date *"><input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass} /></Field>
+            <Field label="Type">
+              <select value={form.type} onChange={e => set('type', e.target.value)} className={inputClass}>
+                {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Location, details…" className={inputClass} /></Field>
+        </div>
+        <ModalFooter onClose={onClose} onSave={() => onSave(form)} valid={valid} label={event ? 'Save Changes' : 'Add Event'} />
+      </div>
     </div>
   )
 }
@@ -692,7 +804,8 @@ function Invoices({ invoices, setInvoices, clients, projects }) {
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const filtered = invoices.filter(i =>
-    (i.num.toLowerCase().includes(search.toLowerCase()) || clients.find(c => c.id === i.clientId)?.name.toLowerCase().includes(search.toLowerCase())) &&
+    (i.num.toLowerCase().includes(search.toLowerCase()) ||
+    (clients.find(c => c.id === i.clientId)?.name || '').toLowerCase().includes(search.toLowerCase())) &&
     (statusFilter === 'All' || i.status === statusFilter)
   )
   function handleSave(form) {
@@ -701,7 +814,7 @@ function Invoices({ invoices, setInvoices, clients, projects }) {
     else setInvoices(p => p.map(x => x.id === modal.id ? { ...modal, ...inv } : x))
     setModal(null)
   }
-  const totalOutstanding = invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue').reduce((sum, i) => sum + i.amount, 0)
+  const totalOutstanding = invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue').reduce((sum, i) => sum + Number(i.amount), 0)
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -809,30 +922,25 @@ function CalendarView({ events, setEvents }) {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
-
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const today = new Date()
-
-  function prevMonth() { setCurrentDate(new Date(year, month - 1, 1)) }
-  function nextMonth() { setCurrentDate(new Date(year, month + 1, 1)) }
-
   function eventsOnDay(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     return events.filter(e => e.date === dateStr)
   }
-
   function handleSave(form) {
     if (modal === 'add') setEvents(p => [...p, { ...form, id: Date.now() }])
     else setEvents(p => p.map(e => e.id === modal.id ? { ...modal, ...form } : e))
     setModal(null)
   }
-
-  const typeColors = { Meeting: 'bg-amber-100 text-amber-700', Delivery: 'bg-teal-100 text-teal-700', 'Site Visit': 'bg-blue-100 text-blue-700', Billing: 'bg-rose-100 text-rose-700', Other: 'bg-slate-100 text-slate-600' }
-
+  const typeColors = {
+    Meeting: 'bg-amber-100 text-amber-700', Delivery: 'bg-teal-100 text-teal-700',
+    'Site Visit': 'bg-blue-100 text-blue-700', Billing: 'bg-rose-100 text-rose-700', Other: 'bg-slate-100 text-slate-600'
+  }
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -843,15 +951,15 @@ function CalendarView({ events, setEvents }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-700">{monthName}</h3>
           <div className="flex gap-2">
-            <button onClick={prevMonth} className="px-3 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50">← Prev</button>
-            <button onClick={nextMonth} className="px-3 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50">Next →</button>
+            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="px-3 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50">← Prev</button>
+            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="px-3 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50">Next →</button>
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-xs text-slate-500 mb-2">
           {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => <div key={d} className="py-2 font-medium">{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
+          {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
             const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
             const dayEvents = eventsOnDay(day)
@@ -871,15 +979,6 @@ function CalendarView({ events, setEvents }) {
       </div>
       {modal && <EventModal event={modal === 'add' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
       {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={() => { setEvents(p => p.filter(e => e.id !== deleteTarget.id)); setDeleteTarget(null) }} onCancel={() => setDeleteTarget(null)} />}
-    </div>
-  )
-}
-
-function Actions({ onEdit, onDelete }) {
-  return (
-    <div className="flex gap-2 justify-end">
-      <button onClick={onEdit} className="text-slate-400 hover:text-teal-600"><Pencil size={15} /></button>
-      <button onClick={onDelete} className="text-slate-400 hover:text-rose-600"><Trash2 size={15} /></button>
     </div>
   )
 }
