@@ -1,7 +1,24 @@
 import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
-import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle, Loader } from 'lucide-react'
+import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle, Loader, Upload, FileImage, Download, Mail } from 'lucide-react'
 import { supabase } from './supabase.js'
+import jsPDF from 'jspdf'
+
+const WORKER_URL = 'https://studio-os-email.leighrossmarcus.workers.dev'
+
+async function sendEmail(to, subject, html) {
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, html })
+    })
+    return await res.json()
+  } catch (err) {
+    console.error('Email error:', err)
+    return { error: err.message }
+  }
+}
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,6 +29,7 @@ const TABS = [
   { id: 'invoices', label: 'Invoices', icon: FileText },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+  { id: 'files', label: 'Files', icon: FileImage },
 ]
 
 const PROJECT_STATUSES = ['Design Phase', 'Procurement', 'In Progress', 'On Hold', 'Complete']
@@ -270,7 +288,8 @@ export default function App() {
           {activeTab === 'vendors' && <Vendors {...shared} />}
           {activeTab === 'invoices' && <Invoices {...shared} />}
           {activeTab === 'calendar' && <CalendarView {...shared} />}
-          {activeTab === 'tasks' && <Tasks {...shared} />}
+         {activeTab === 'tasks' && <Tasks {...shared} />}
+      {activeTab === 'files' && <Files {...shared} />}
         </>}
       </main>
     </div>
@@ -881,12 +900,152 @@ if (modal === 'add') await supabase.from('invoices').insert({ ...data, user_id }
     reload()
   }
 
-  async function handleDelete() {
+async function handleDelete() {
     setDeleteLoading(true)
     await supabase.from('invoices').delete().eq('id', deleteTarget.id)
     setDeleteLoading(false)
     setDeleteTarget(null)
     reload()
+  }
+
+  async function handleSendReminder(invoice) {
+    const client = clients.find(c => c.id === invoice.client_id)
+    if (!client?.email) {
+      alert('This client has no email address on file.')
+      return
+    }
+    const due = invoice.due
+      ? new Date(invoice.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'soon'
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1B6B6B; padding: 24px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">Studio OS</h1>
+          <p style="color: #a7d4d4; margin: 4px 0 0;">Invoice Reminder</p>
+        </div>
+        <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e5e5;">
+          <p style="color: #333;">Hi ${client.name},</p>
+          <p style="color: #333;">This is a friendly reminder that invoice <strong>${invoice.num}</strong> for <strong>$${Number(invoice.amount).toLocaleString()}</strong> is due on <strong>${due}</strong>.</p>
+          <div style="background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0; color: #666; font-size: 14px;">Invoice #: <strong style="color: #333;">${invoice.num}</strong></p>
+            <p style="margin: 8px 0 0; color: #666; font-size: 14px;">Amount Due: <strong style="color: #1B6B6B; font-size: 18px;">$${Number(invoice.amount).toLocaleString()}</strong></p>
+            <p style="margin: 8px 0 0; color: #666; font-size: 14px;">Due Date: <strong style="color: #333;">${due}</strong></p>
+          </div>
+          <p style="color: #333;">Please don't hesitate to reach out if you have any questions.</p>
+          <p style="color: #333;">Thank you for your business!</p>
+          <p style="color: #888; font-size: 12px; margin-top: 32px; border-top: 1px solid #e5e5e5; padding-top: 16px;">Sent via Studio OS</p>
+        </div>
+      </div>
+    `
+    const result = await sendEmail(client.email, `Invoice Reminder: ${invoice.num} — $${Number(invoice.amount).toLocaleString()} due ${due}`, html)
+    if (result.error) {
+      alert(`Failed to send: ${result.error}`)
+    } else {
+      alert(`Reminder sent to ${client.email}`)
+    }
+  }
+
+  function generatePDF(invoice) {
+    const doc = new jsPDF()
+    const client = clients.find(c => c.id === invoice.client_id)
+    const project = projects.find(p => p.id === invoice.project_id)
+
+    // Header
+    doc.setFillColor(27, 107, 107)
+    doc.rect(0, 0, 210, 40, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.text('INVOICE', 20, 22)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Studio OS`, 20, 32)
+
+    // Invoice number + date
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(11)
+    doc.text(`Invoice #: ${invoice.num}`, 140, 22)
+    doc.text(`Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 140, 32)
+
+    // Client info
+    doc.setTextColor(50, 50, 50)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Bill To:', 20, 58)
+    doc.setFont('helvetica', 'normal')
+    doc.text(client?.name || '—', 20, 66)
+    if (client?.email) doc.text(client.email, 20, 74)
+    if (client?.phone) doc.text(client.phone, 20, 82)
+
+    // Project
+    if (project) {
+      doc.setFont('helvetica', 'bold')
+      doc.text('Project:', 120, 58)
+      doc.setFont('helvetica', 'normal')
+      doc.text(project.name, 120, 66)
+    }
+
+    // Due date
+    if (invoice.due) {
+      doc.setFont('helvetica', 'bold')
+      doc.text('Due Date:', 120, 78)
+      doc.setFont('helvetica', 'normal')
+      doc.text(new Date(invoice.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), 120, 86)
+    }
+
+    // Divider
+    doc.setDrawColor(200, 200, 200)
+    doc.line(20, 95, 190, 95)
+
+    // Table header
+    doc.setFillColor(245, 245, 245)
+    doc.rect(20, 100, 170, 10, 'F')
+    doc.setTextColor(80, 80, 80)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Description', 25, 107)
+    doc.text('Amount', 165, 107, { align: 'right' })
+
+    // Line item
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(50, 50, 50)
+    doc.text(project?.name || 'Services Rendered', 25, 120)
+    doc.text(`$${Number(invoice.amount).toLocaleString()}`, 165, 120, { align: 'right' })
+
+    // Total box
+    doc.setFillColor(27, 107, 107)
+    doc.rect(120, 135, 70, 14, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Total:', 125, 144)
+    doc.text(`$${Number(invoice.amount).toLocaleString()}`, 185, 144, { align: 'right' })
+
+    // Status
+    doc.setTextColor(80, 80, 80)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Status: ${invoice.status}`, 20, 144)
+
+    // Notes
+    if (invoice.notes) {
+      doc.setDrawColor(200, 200, 200)
+      doc.line(20, 158, 190, 158)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Notes:', 20, 166)
+      doc.setFont('helvetica', 'normal')
+      doc.text(invoice.notes, 20, 174, { maxWidth: 170 })
+    }
+
+    // Footer
+    doc.setFillColor(245, 245, 245)
+    doc.rect(0, 272, 210, 25, 'F')
+    doc.setTextColor(120, 120, 120)
+    doc.setFontSize(9)
+    doc.text('Thank you for your business.', 105, 282, { align: 'center' })
+    doc.text('Studio OS — Interior Design Management', 105, 289, { align: 'center' })
+
+    doc.save(`invoice-${invoice.num}.pdf`)
   }
 
   const totalOutstanding = invoices
@@ -931,7 +1090,14 @@ if (modal === 'add') await supabase.from('invoices').insert({ ...data, user_id }
                 <td className="px-5 py-3 font-medium">${Number(i.amount).toLocaleString()}</td>
                 <td className="px-5 py-3 text-slate-500">{i.due ? new Date(i.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                 <td className="px-5 py-3"><Badge status={i.status} /></td>
-                <td className="px-5 py-3"><Actions onEdit={() => setModal(i)} onDelete={() => setDeleteTarget(i)} /></td>
+               <td className="px-5 py-3">
+                  <div className="flex gap-2 items-center justify-end">
+                    <button onClick={() => generatePDF(i)} className="text-slate-400 hover:text-teal-600" title="Download PDF"><Download size={15} /></button>
+                    <button onClick={() => handleSendReminder(i)} className="text-slate-400 hover:text-amber-500" title="Send reminder"><Mail size={15} /></button>
+                    <button onClick={() => setModal(i)} className="text-slate-400 hover:text-teal-600"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteTarget(i)} className="text-slate-400 hover:text-rose-600"><Trash2 size={15} /></button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1013,6 +1179,163 @@ if (modal === 'add') await supabase.from('tasks').insert({ ...form, user_id })
   )
 }
 
+function Files({ projects, clients }) {
+  const [files, setFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [projectFilter, setProjectFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  async function loadFiles() {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error } = await supabase.storage
+      .from('studio-files')
+      .list(user.id, { sortBy: { column: 'created_at', order: 'desc' } })
+    if (data) {
+      const enriched = await Promise.all(data.map(async f => {
+        const { data: urlData } = supabase.storage
+          .from('studio-files')
+          .getPublicUrl(`${user.id}/${f.name}`)
+        const { data: signedData } = await supabase.storage
+          .from('studio-files')
+          .createSignedUrl(`${user.id}/${f.name}`, 3600)
+        const meta = f.metadata || {}
+        return {
+          ...f,
+          signedUrl: signedData?.signedUrl,
+          projectId: meta.project_id || '',
+          displayName: meta.display_name || f.name,
+        }
+      }))
+      setFiles(enriched)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { loadFiles() }, [])
+
+  async function handleUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const ext = file.name.split('.').pop()
+    const fileName = `${Date.now()}.${ext}`
+    const path = `${user.id}/${fileName}`
+    const { error } = await supabase.storage
+      .from('studio-files')
+      .upload(path, file, {
+        metadata: {
+          display_name: file.name,
+          project_id: projectFilter || '',
+        }
+      })
+    if (!error) await loadFiles()
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.storage
+      .from('studio-files')
+      .remove([`${user.id}/${deleteTarget.name}`])
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+    await loadFiles()
+  }
+
+  const filtered = files.filter(f => {
+    const matchSearch = f.displayName.toLowerCase().includes(search.toLowerCase())
+    const matchProject = !projectFilter || f.projectId === projectFilter
+    return matchSearch && matchProject
+  })
+
+  function formatSize(bytes) {
+    if (!bytes) return '—'
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  function isImage(name) {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(name)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold text-slate-800">Files</h2>
+        <label className={`flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-teal-700 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          {uploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
+          {uploading ? 'Uploading…' : 'Upload File'}
+          <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+        </label>
+      </div>
+      <div className="flex gap-3 mb-5">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search files…"
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
+        <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <option value="">All Projects</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+      {loading ? <LoadingSpinner /> : (
+        <div className="grid grid-cols-4 gap-4">
+          {filtered.length === 0 && (
+            <div className="col-span-4 text-center py-16 text-slate-400">
+              No files yet — upload mood boards, photos, or documents
+            </div>
+          )}
+          {filtered.map(f => (
+            <div key={f.name} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="h-36 bg-slate-100 flex items-center justify-center overflow-hidden">
+                {isImage(f.name) && f.signedUrl
+                  ? <img src={f.signedUrl} alt={f.displayName} className="w-full h-full object-cover" />
+                  : <FileImage size={40} className="text-slate-300" />
+                }
+              </div>
+              <div className="p-3">
+                <p className="text-sm font-medium text-slate-700 truncate">{f.displayName}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{formatSize(f.metadata?.size)}</p>
+                {f.projectId && (
+                  <p className="text-xs text-teal-600 mt-0.5 truncate">
+                    {projects.find(p => p.id === f.projectId)?.name || ''}
+                  </p>
+                )}
+                <div className="flex gap-2 mt-2">
+                  {f.signedUrl && (
+                    <a href={f.signedUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800">
+                      <Download size={13} /> View
+                    </a>
+                  )}
+                  <button onClick={() => setDeleteTarget(f)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 ml-auto">
+                    <Trash2 size={13} /> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          name={deleteTarget.displayName}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+          loading={deleteLoading}
+        />
+      )}
+    </div>
+  )
+}
 function CalendarView({ events, reload }) {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
   const [modal, setModal] = useState(null)
