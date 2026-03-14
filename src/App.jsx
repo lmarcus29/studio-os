@@ -89,8 +89,8 @@ function Actions({ onEdit, onDelete }) {
 
 function ConfirmDeleteModal({ name, onConfirm, onCancel, loading }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm max-h-screen overflow-y-auto">
         <h3 className="text-lg font-semibold text-slate-800 mb-2">Confirm Delete</h3>
         <p className="text-sm text-slate-500 mb-6">Are you sure you want to delete <span className="font-medium text-slate-700">{name}</span>? This cannot be undone.</p>
         <div className="flex gap-3 justify-end">
@@ -248,27 +248,21 @@ export default function App() {
   const shared = { clients, projects, vendors, items, invoices, tasks, events, reload: loadAll }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="bg-teal-800 text-white px-6 py-3 flex items-center justify-between shadow-md flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-semibold tracking-wide">Studio OS</span>
-          <span className="text-teal-300 text-sm">Interior Design Management</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-teal-900 font-bold text-sm">
-              {session.user.email.substring(0, 2).toUpperCase()}
-            </div>
-            <span className="text-sm text-teal-100">{session.user.email}</span>
+<div className="min-h-screen bg-slate-50 flex flex-col">
+<header className="bg-teal-800 text-white px-4 py-3 flex items-center justify-between shadow-md flex-shrink-0">
+        <span className="text-xl font-semibold tracking-wide">Studio OS</span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-teal-900 font-bold text-sm flex-shrink-0">
+            {session.user.email.substring(0, 2).toUpperCase()}
           </div>
           <button onClick={() => supabase.auth.signOut()}
-            className="text-xs text-teal-300 hover:text-white border border-teal-600 px-3 py-1 rounded-lg">
+            className="text-xs text-teal-300 hover:text-white border border-teal-600 px-3 py-1 rounded-lg whitespace-nowrap">
             Sign Out
           </button>
         </div>
       </header>
 
-      <nav className="bg-white border-b border-slate-200 px-4 flex gap-1 flex-shrink-0 shadow-sm">
+      <nav className="bg-white border-b border-slate-200 px-4 flex gap-1 flex-shrink-0 shadow-sm overflow-x-auto">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setActiveTab(id)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -304,8 +298,8 @@ function ClientModal({ client, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 modal-overlay">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{client ? 'Edit Client' : 'Add Client'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -333,8 +327,8 @@ function ProjectModal({ project, clients, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{project ? 'Edit Project' : 'Add Project'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -370,8 +364,8 @@ function VendorModal({ vendor, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{vendor ? 'Edit Vendor' : 'Add Vendor'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -396,8 +390,8 @@ function ItemModal({ item, projects, vendors, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{item ? 'Edit Item' : 'Add Item'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -438,8 +432,8 @@ function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.num.trim() && form.amount
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{invoice ? 'Edit Invoice' : 'New Invoice'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -483,8 +477,8 @@ function TaskModal({ task, projects, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.title.trim()
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{task ? 'Edit Task' : 'Add Task'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -516,8 +510,8 @@ function EventModal({ event, onSave, onClose }) {
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.title.trim() && form.date
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800">{event ? 'Edit Event' : 'Add Event'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
@@ -633,7 +627,7 @@ async function handleSave(form, setLoading) {
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients…"
         className="mb-4 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-72" />
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-left text-slate-500">
@@ -1418,3 +1412,6 @@ if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
     </div>
   )
 }
+
+
+
