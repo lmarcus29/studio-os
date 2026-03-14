@@ -249,7 +249,7 @@ export default function App() {
 
   return (
 <div className="min-h-screen bg-slate-50 flex flex-col">
-  <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-center text-sm text-amber-800 md:hidden">
+<div style={{display: window.innerWidth < 768 ? 'block' : 'none'}} className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-center text-sm text-amber-800">
         📱 Studio OS is optimized for desktop. For the best experience, please use a laptop or desktop computer.
       </div>
 <header className="bg-teal-800 text-white px-4 py-3 flex items-center justify-between shadow-md flex-shrink-0">
