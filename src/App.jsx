@@ -40,12 +40,13 @@ const EVENT_TYPES = ['Meeting', 'Delivery', 'Site Visit', 'Billing', 'Other']
 
 // ── SHARED UI ────────────────────────────────────────────
 
-const inputClass = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500'
+const inputClass = 'w-full px-3 py-2 text-sm focus:outline-none rounded'
+const inputStyle = {border:'1px solid rgba(42,37,32,0.15)',background:'#FDFAF6',color:'#2A2520',fontFamily:"'DM Sans', sans-serif"}
 
 function Field({ label, children }) {
   return (
     <div>
-      <label className="text-xs font-medium text-slate-500 mb-1 block">{label}</label>
+      <label style={{fontFamily:"'DM Mono', monospace",fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.35rem',display:'block'}}>{label}</label>
       {children}
     </div>
   )
@@ -53,10 +54,10 @@ function Field({ label, children }) {
 
 function ModalFooter({ onClose, onSave, valid, label, loading }) {
   return (
-    <div className="flex gap-3 justify-end mt-6">
-      <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+    <div style={{display:'flex',gap:'0.75rem',justifyContent:'flex-end',marginTop:'1.5rem'}}>
+      <button onClick={onClose} style={{padding:'0.5rem 1.1rem',fontSize:'0.78rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,background:'transparent',color:'#4A4540',cursor:'pointer'}}>Cancel</button>
       <button onClick={onSave} disabled={!valid || loading}
-        className={`px-4 py-2 text-sm rounded-lg text-white flex items-center gap-2 ${valid && !loading ? 'bg-teal-600 hover:bg-teal-700' : 'bg-slate-300 cursor-not-allowed'}`}>
+        style={{padding:'0.5rem 1.1rem',fontSize:'0.78rem',borderRadius:4,border:'none',color:'white',display:'flex',alignItems:'center',gap:'0.4rem',cursor: valid && !loading ? 'pointer' : 'not-allowed',background: valid && !loading ? '#C4622D' : '#C4B5A0'}}>
         {loading && <Loader size={14} className="animate-spin" />}
         {label}
       </button>
@@ -66,37 +67,52 @@ function ModalFooter({ onClose, onSave, valid, label, loading }) {
 
 function Badge({ status }) {
   const colors = {
-    Active: 'bg-teal-50 text-teal-700', Lead: 'bg-amber-50 text-amber-700', Inactive: 'bg-slate-100 text-slate-500',
-    'In Progress': 'bg-teal-50 text-teal-700', Procurement: 'bg-blue-50 text-blue-700',
-    'Design Phase': 'bg-amber-50 text-amber-700', 'On Hold': 'bg-rose-50 text-rose-700', Complete: 'bg-slate-100 text-slate-500',
-    'To Order': 'bg-slate-100 text-slate-500', Ordered: 'bg-blue-50 text-blue-700',
-    Arrived: 'bg-amber-50 text-amber-700', Installed: 'bg-teal-50 text-teal-700', Delayed: 'bg-rose-50 text-rose-700',
-    Pending: 'bg-amber-50 text-amber-700', Paid: 'bg-teal-50 text-teal-700', Overdue: 'bg-rose-50 text-rose-700', Cancelled: 'bg-slate-100 text-slate-500',
-    Meeting: 'bg-amber-50 text-amber-700', Delivery: 'bg-teal-50 text-teal-700', 'Site Visit': 'bg-blue-50 text-blue-700',
-    Billing: 'bg-rose-50 text-rose-700', Other: 'bg-slate-100 text-slate-500',
+    Active: {background:'#EBF0EC',color:'#6B7C6E'},
+    Lead: {background:'#F5EDD8',color:'#B8963E'},
+    Inactive: {background:'#E8E0D5',color:'#8A8278'},
+    'In Progress': {background:'#EBF0EC',color:'#6B7C6E'},
+    Procurement: {background:'#E8E0D5',color:'#4A4540'},
+    'Design Phase': {background:'#F5EDD8',color:'#B8963E'},
+    'On Hold': {background:'#F5E8E5',color:'#C47A6B'},
+    Complete: {background:'#E8E0D5',color:'#8A8278'},
+    'To Order': {background:'#E8E0D5',color:'#8A8278'},
+    Ordered: {background:'#E8E0D5',color:'#4A4540'},
+    Arrived: {background:'#F5EDD8',color:'#B8963E'},
+    Installed: {background:'#EBF0EC',color:'#6B7C6E'},
+    Delayed: {background:'#F5E8E5',color:'#C47A6B'},
+    Pending: {background:'#F5EDD8',color:'#B8963E'},
+    Paid: {background:'#EBF0EC',color:'#6B7C6E'},
+    Overdue: {background:'#F5E6DE',color:'#C4622D'},
+    Cancelled: {background:'#E8E0D5',color:'#8A8278'},
+    Meeting: {background:'#F5EDD8',color:'#B8963E'},
+    Delivery: {background:'#EBF0EC',color:'#6B7C6E'},
+    'Site Visit': {background:'#E8E0D5',color:'#4A4540'},
+    Billing: {background:'#F5E8E5',color:'#C47A6B'},
+    Other: {background:'#E8E0D5',color:'#8A8278'},
   }
-  return <span className={`px-2 py-1 rounded-full text-xs ${colors[status] || 'bg-slate-100 text-slate-500'}`}>{status}</span>
+  const s = colors[status] || {background:'#E8E0D5',color:'#8A8278'}
+  return <span style={{...s,padding:'0.2rem 0.6rem',borderRadius:10,fontSize:'0.72rem',fontFamily:"'DM Mono', monospace",letterSpacing:'0.03em'}}>{status}</span>
 }
 
 function Actions({ onEdit, onDelete }) {
   return (
-    <div className="flex gap-2 justify-end">
-      <button onClick={onEdit} className="text-slate-400 hover:text-teal-600"><Pencil size={15} /></button>
-      <button onClick={onDelete} className="text-slate-400 hover:text-rose-600"><Trash2 size={15} /></button>
+    <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
+      <button onClick={onEdit} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Pencil size={15} /></button>
+      <button onClick={onDelete} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Trash2 size={15} /></button>
     </div>
   )
 }
 
 function ConfirmDeleteModal({ name, onConfirm, onCancel, loading }) {
   return (
-   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm max-h-screen overflow-y-auto">
-        <h3 className="text-lg font-semibold text-slate-800 mb-2">Confirm Delete</h3>
-        <p className="text-sm text-slate-500 mb-6">Are you sure you want to delete <span className="font-medium text-slate-700">{name}</span>? This cannot be undone.</p>
-        <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+    <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem'}}>
+      <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:380}}>
+        <h3 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.3rem',fontWeight:400,color:'#2A2520',marginBottom:'0.5rem'}}>Confirm Delete</h3>
+        <p style={{fontSize:'0.82rem',color:'#8A8278',marginBottom:'1.5rem'}}>Are you sure you want to delete <span style={{color:'#2A2520',fontWeight:500}}>{name}</span>? This cannot be undone.</p>
+        <div style={{display:'flex',gap:'0.75rem',justifyContent:'flex-end'}}>
+          <button onClick={onCancel} style={{padding:'0.5rem 1.1rem',fontSize:'0.78rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,background:'transparent',color:'#4A4540',cursor:'pointer'}}>Cancel</button>
           <button onClick={onConfirm} disabled={loading}
-            className="px-4 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700 flex items-center gap-2 disabled:opacity-50">
+            style={{padding:'0.5rem 1.1rem',fontSize:'0.78rem',borderRadius:4,border:'none',background:'#C4622D',color:'white',display:'flex',alignItems:'center',gap:'0.4rem',cursor:'pointer',opacity: loading ? 0.6 : 1}}>
             {loading && <Loader size={14} className="animate-spin" />}
             Delete
           </button>
@@ -108,8 +124,8 @@ function ConfirmDeleteModal({ name, onConfirm, onCancel, loading }) {
 
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center py-16">
-      <Loader size={24} className="animate-spin text-teal-500" />
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'4rem 0'}}>
+      <Loader size={24} className="animate-spin" style={{color:'#C4622D'}} />
     </div>
   )
 }
@@ -168,7 +184,7 @@ function AuthScreen() {
         {error && <p className="mt-3 text-xs text-rose-600">{error}</p>}
         {message && <p className="mt-3 text-xs text-teal-600">{message}</p>}
         <button onClick={handleSubmit} disabled={loading}
-          className="mt-5 w-full bg-teal-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 flex items-center justify-center gap-2">
+          style={{marginTop:'1.25rem',width:'100%',background:'#C4622D',color:'white',padding:'0.6rem',borderRadius:4,fontSize:'0.82rem',fontWeight:500,border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',opacity: loading ? 0.6 : 1}}>
           {loading && <Loader size={14} className="animate-spin" />}
           {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Send Reset Email'}
         </button>
@@ -248,47 +264,64 @@ export default function App() {
   const shared = { clients, projects, vendors, items, invoices, tasks, events, reload: loadAll }
 
   return (
-<div className="min-h-screen bg-slate-50 flex flex-col">
-<div style={{display: window.innerWidth < 768 ? 'block' : 'none'}} className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-center text-sm text-amber-800">
-        📱 Studio OS is optimized for desktop. For the best experience, please use a laptop or desktop computer.
+<div className="h-screen flex flex-col overflow-hidden" style={{background:'#F7F3EE',fontFamily:"'DM Sans', sans-serif"}}>
+      {/* Mobile warning */}
+      <div style={{display: window.innerWidth < 768 ? 'block' : 'none', background:'#F5E6DE', borderBottom:'1px solid #C4622D', padding:'0.75rem 1rem', textAlign:'center', fontSize:'0.8rem', color:'#C4622D'}}>
+        📱 Studio OS is designed for desktop. Please use a laptop or desktop for the best experience.
       </div>
-<header className="bg-teal-800 text-white px-4 py-3 flex items-center justify-between shadow-md flex-shrink-0">
-        <span className="text-xl font-semibold tracking-wide">Studio OS</span>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-teal-900 font-bold text-sm flex-shrink-0">
+      {/* Top bar */}
+      <header style={{height:'52px',background:'#2A2520',display:'flex',alignItems:'center',padding:'0 1.5rem',gap:'1rem',flexShrink:0,zIndex:100}}>
+        <span style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.25rem',fontWeight:300,color:'#F7F3EE',letterSpacing:'0.05em'}}>
+          Studio <span style={{color:'#C4B5A0',fontStyle:'italic'}}>OS</span>
+        </span>
+        <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:'0.75rem'}}>
+          <div style={{width:30,height:30,borderRadius:'50%',background:'#C4622D',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:600,color:'white',letterSpacing:'0.05em'}}>
             {session.user.email.substring(0, 2).toUpperCase()}
           </div>
+          <span style={{fontSize:'0.78rem',color:'#C4B5A0'}}>{session.user.email}</span>
           <button onClick={() => supabase.auth.signOut()}
-            className="text-xs text-teal-300 hover:text-white border border-teal-600 px-3 py-1 rounded-lg whitespace-nowrap">
+            style={{fontSize:'0.72rem',color:'#8A8278',background:'transparent',border:'1px solid rgba(42,37,32,0.3)',padding:'0.25rem 0.75rem',borderRadius:4,cursor:'pointer'}}>
             Sign Out
           </button>
         </div>
       </header>
-
-      <nav className="bg-white border-b border-slate-200 px-4 flex gap-1 flex-shrink-0 shadow-sm overflow-x-auto">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === id ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}>
-            <Icon size={16} />{label}
-          </button>
-        ))}
-      </nav>
-
-      <main className="flex-1 p-6 overflow-auto">
-        {dataLoading ? <LoadingSpinner /> : <>
-          {activeTab === 'dashboard' && <Dashboard {...shared} />}
-          {activeTab === 'clients' && <Clients {...shared} />}
-          {activeTab === 'projects' && <Projects {...shared} />}
-          {activeTab === 'items' && <Items {...shared} />}
-          {activeTab === 'vendors' && <Vendors {...shared} />}
-          {activeTab === 'invoices' && <Invoices {...shared} />}
-          {activeTab === 'calendar' && <CalendarView {...shared} />}
-         {activeTab === 'tasks' && <Tasks {...shared} />}
-      {activeTab === 'files' && <Files {...shared} />}
-        </>}
-      </main>
+      {/* Body: sidebar + main */}
+      <div style={{display:'flex',flex:1,overflow:'hidden'}}>
+        {/* Sidebar */}
+        <nav style={{width:200,background:'#FDFAF6',borderRight:'1px solid rgba(42,37,32,0.1)',display:'flex',flexDirection:'column',flexShrink:0,overflowY:'auto'}}>
+          <div style={{padding:'1.25rem 0.75rem 0.5rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.2em',textTransform:'uppercase',color:'#C4B5A0',padding:'0 0.5rem',marginBottom:'0.4rem'}}>Workspace</div>
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setActiveTab(id)} style={{
+                display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.55rem 0.75rem',borderRadius:6,cursor:'pointer',
+                fontSize:'0.82rem',width:'100%',textAlign:'left',border:'none',marginBottom:'0.15rem',transition:'all 0.15s',
+                background: activeTab === id ? '#F5E6DE' : 'transparent',
+                color: activeTab === id ? '#C4622D' : '#4A4540',
+                fontWeight: activeTab === id ? 500 : 400,
+              }}>
+                <Icon size={15} style={{flexShrink:0,opacity: activeTab === id ? 1 : 0.7}} />
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
+        {/* Main content */}
+        <main style={{flex:1,overflowY:'auto',background:'#F7F3EE'}}>
+          <div style={{padding:'1.5rem 2rem',flex:1}}>
+            {dataLoading ? <LoadingSpinner /> : <>
+              {activeTab === 'dashboard' && <Dashboard {...shared} />}
+              {activeTab === 'clients' && <Clients {...shared} />}
+              {activeTab === 'projects' && <Projects {...shared} />}
+              {activeTab === 'items' && <Items {...shared} />}
+              {activeTab === 'vendors' && <Vendors {...shared} />}
+              {activeTab === 'invoices' && <Invoices {...shared} />}
+              {activeTab === 'calendar' && <CalendarView {...shared} />}
+              {activeTab === 'tasks' && <Tasks {...shared} />}
+              {activeTab === 'files' && <Files {...shared} />}
+            </>}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
@@ -539,52 +572,150 @@ function EventModal({ event, onSave, onClose }) {
 
 // ── MODULES ──────────────────────────────────────────────
 
-function Dashboard({ clients, projects, invoices, tasks }) {
+function Dashboard({ clients, projects, invoices, tasks, events }) {
   const activeProjects = projects.filter(p => p.status !== 'Complete').length
   const activeClients = clients.filter(c => c.status === 'Active').length
   const openInvoices = invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue').length
+  const overdueInvoices = invoices.filter(i => i.status === 'Overdue').length
   const todayTasks = tasks.filter(t => t.priority === 'Today' && !t.done).length
+  const totalOutstanding = invoices.filter(i => i.status === 'Pending' || i.status === 'Overdue').reduce((sum, i) => sum + Number(i.amount || 0), 0)
+
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  const upcomingEvents = events
+    .filter(e => e.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 5)
+
+  const todayTaskList = tasks.filter(t => t.priority === 'Today' && !t.done).slice(0, 6)
+  const thisWeekTasks = tasks.filter(t => t.priority === 'This Week' && !t.done).slice(0, 4)
+
+  const kpis = [
+    { label: 'Active Projects', value: activeProjects, sub: `${projects.filter(p => p.status === 'Complete').length} complete` },
+    { label: 'Outstanding', value: `$${totalOutstanding.toLocaleString()}`, sub: `${openInvoices} open invoice${openInvoices !== 1 ? 's' : ''}${overdueInvoices ? ` · ${overdueInvoices} overdue` : ''}` },
+    { label: 'Active Clients', value: activeClients, sub: `${clients.filter(c => c.status === 'Lead').length} leads` },
+    { label: 'Due Today', value: todayTasks, sub: `${tasks.filter(t => !t.done).length} total open tasks` },
+  ]
+
+  const eventTypeColors = {
+    Meeting: {background:'#F5EDD8',color:'#B8963E'},
+    Delivery: {background:'#EBF0EC',color:'#6B7C6E'},
+    'Site Visit': {background:'#E8E0D5',color:'#4A4540'},
+    Billing: {background:'#F5E8E5',color:'#C47A6B'},
+    Other: {background:'#E8E0D5',color:'#8A8278'},
+  }
+
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-slate-800 mb-6">Dashboard</h2>
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Active Projects', value: activeProjects, color: 'bg-teal-50 border-teal-200 text-teal-700' },
-          { label: 'Open Invoices', value: openInvoices, color: 'bg-amber-50 border-amber-200 text-amber-700' },
-          { label: 'Active Clients', value: activeClients, color: 'bg-slate-50 border-slate-200 text-slate-700' },
-          { label: 'Tasks Due Today', value: todayTasks, color: 'bg-rose-50 border-rose-200 text-rose-700' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className={`border rounded-xl p-5 ${color}`}>
-            <div className="text-3xl font-bold mb-1">{value}</div>
-            <div className="text-sm font-medium">{label}</div>
+      {/* Page header */}
+      <div style={{marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520',letterSpacing:'-0.01em'}}>Dashboard</h2>
+        <p style={{fontSize:'0.78rem',color:'#8A8278',marginTop:'0.1rem'}}>{today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</p>
+      </div>
+
+      {/* KPI row */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'1.5rem'}}>
+        {kpis.map(({ label, value, sub }) => (
+          <div key={label} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.35rem'}}>{label}</div>
+            <div style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'2rem',fontWeight:400,lineHeight:1,color:'#2A2520'}}>{value}</div>
+            <div style={{fontSize:'0.72rem',color:'#8A8278',marginTop:'0.25rem'}}>{sub}</div>
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <h3 className="text-lg font-semibold text-slate-700 mb-4">Active Projects</h3>
-        {projects.filter(p => p.status !== 'Complete').length === 0
-          ? <p className="text-slate-400 text-sm py-4 text-center">No active projects yet</p>
-          : <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-500 border-b border-slate-100">
-                  <th className="pb-2 font-medium">Project</th>
-                  <th className="pb-2 font-medium">Client</th>
-                  <th className="pb-2 font-medium">Status</th>
-                  <th className="pb-2 font-medium">Budget</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.filter(p => p.status !== 'Complete').slice(0, 5).map(p => (
-                  <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="py-3 font-medium text-slate-800">{p.name}</td>
-                    <td className="py-3 text-slate-500">{clients.find(c => c.id === p.client_id)?.name || '—'}</td>
-                    <td className="py-3"><Badge status={p.status} /></td>
-                    <td className="py-3 text-slate-600">${Number(p.budget).toLocaleString()}</td>
+
+      {/* Main grid */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:'1.25rem'}}>
+
+        {/* Left: Active Projects */}
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+          <div style={{padding:'0.9rem 1.25rem',borderBottom:'1px solid rgba(42,37,32,0.06)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Active Projects</span>
+            <span style={{fontSize:'0.72rem',color:'#C4622D'}}>{activeProjects} active</span>
+          </div>
+          {projects.filter(p => p.status !== 'Complete').length === 0
+            ? <p style={{padding:'2rem',textAlign:'center',fontSize:'0.82rem',color:'#8A8278'}}>No active projects yet</p>
+            : <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(42,37,32,0.06)'}}>
+                    {['Project','Client','Status','Budget'].map(h => (
+                      <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-        }
+                </thead>
+                <tbody>
+                  {projects.filter(p => p.status !== 'Complete').slice(0, 6).map(p => (
+                    <tr key={p.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                      <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{p.name}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{clients.find(c => c.id === p.client_id)?.name || '—'}</td>
+                      <td style={{padding:'0.75rem 1.25rem'}}><Badge status={p.status} /></td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(p.budget).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+
+        {/* Right column */}
+        <div style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>
+
+          {/* Today's Tasks */}
+          <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'0.9rem 1.25rem',borderBottom:'1px solid rgba(42,37,32,0.06)'}}>
+              <span style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Today's Tasks</span>
+            </div>
+            <div style={{padding:'0.75rem 1.25rem'}}>
+              {todayTaskList.length === 0
+                ? <p style={{fontSize:'0.78rem',color:'#8A8278',padding:'0.5rem 0'}}>No tasks due today</p>
+                : todayTaskList.map(t => (
+                  <div key={t.id} style={{display:'flex',alignItems:'flex-start',gap:'0.6rem',padding:'0.4rem 0',borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                    <div style={{width:14,height:14,borderRadius:3,border:'1px solid rgba(42,37,32,0.2)',flexShrink:0,marginTop:2,background: t.done ? '#C4622D' : 'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {t.done && <span style={{color:'white',fontSize:'0.6rem'}}>✓</span>}
+                    </div>
+                    <span style={{fontSize:'0.8rem',color: t.done ? '#C4B5A0' : '#2A2520',textDecoration: t.done ? 'line-through' : 'none'}}>{t.title}</span>
+                  </div>
+                ))
+              }
+              {thisWeekTasks.length > 0 && (
+                <>
+                  <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#C4B5A0',margin:'0.75rem 0 0.4rem'}}>This Week</div>
+                  {thisWeekTasks.map(t => (
+                    <div key={t.id} style={{display:'flex',alignItems:'flex-start',gap:'0.6rem',padding:'0.35rem 0',borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                      <div style={{width:14,height:14,borderRadius:3,border:'1px solid rgba(42,37,32,0.12)',flexShrink:0,marginTop:2}}/>
+                      <span style={{fontSize:'0.78rem',color:'#8A8278'}}>{t.title}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Events */}
+          <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'0.9rem 1.25rem',borderBottom:'1px solid rgba(42,37,32,0.06)'}}>
+              <span style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Upcoming</span>
+            </div>
+            <div style={{padding:'0.75rem 1.25rem'}}>
+              {upcomingEvents.length === 0
+                ? <p style={{fontSize:'0.78rem',color:'#8A8278',padding:'0.5rem 0'}}>No upcoming events</p>
+                : upcomingEvents.map(e => (
+                  <div key={e.id} style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.5rem 0',borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                    <div style={{flexShrink:0,width:36,textAlign:'center'}}>
+                      <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.6rem',color:'#C4622D',textTransform:'uppercase'}}>{new Date(e.date+'T00:00:00').toLocaleDateString('en-US',{month:'short'})}</div>
+                      <div style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.2rem',fontWeight:400,color:'#2A2520',lineHeight:1}}>{new Date(e.date+'T00:00:00').getDate()}</div>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'0.8rem',color:'#2A2520',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{e.title}</div>
+                      <span style={{...(eventTypeColors[e.type]||{background:'#E8E0D5',color:'#8A8278'}),fontSize:'0.6rem',fontFamily:"'DM Mono', monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{e.type}</span>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   )
@@ -624,29 +755,33 @@ async function handleSave(form, setLoading) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Clients</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ Add Client</button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <div>
+          <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Clients</h2>
+        </div>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ Add Client</button>
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients…"
-        className="mb-4 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-72" />
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr className="text-left text-slate-500">
-              {['Name','Email','Phone','Status','Notes',''].map(h => <th key={h} className="px-5 py-3 font-medium">{h}</th>)}
+        className={inputClass} style={{...inputStyle,marginBottom:'1rem',width:280}} />
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+        <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+          <thead>
+            <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+              {['Name','Email','Phone','Status','Notes',''].map(h => (
+                <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No clients yet — add your first one!</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} style={{padding:'2rem',textAlign:'center',color:'#8A8278'}}>No clients yet — add your first one!</td></tr>}
             {filtered.map(c => (
-              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-5 py-3 font-medium">{c.name}</td>
-                <td className="px-5 py-3 text-slate-500">{c.email}</td>
-                <td className="px-5 py-3 text-slate-500">{c.phone}</td>
-                <td className="px-5 py-3"><Badge status={c.status} /></td>
-                <td className="px-5 py-3 text-slate-400 text-xs max-w-xs truncate">{c.notes}</td>
-                <td className="px-5 py-3"><Actions onEdit={() => setModal(c)} onDelete={() => setDeleteTarget(c)} /></td>
+              <tr key={c.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{c.name}</td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{c.email}</td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{c.phone}</td>
+                <td style={{padding:'0.75rem 1.25rem'}}><Badge status={c.status} /></td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#C4B5A0',fontSize:'0.75rem',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.notes}</td>
+                <td style={{padding:'0.75rem 1.25rem'}}><Actions onEdit={() => setModal(c)} onDelete={() => setDeleteTarget(c)} /></td>
               </tr>
             ))}
           </tbody>
@@ -691,44 +826,44 @@ if (modal === 'add') await supabase.from('projects').insert({ ...data, user_id }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Projects</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ Add Project</button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Projects</h2>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ Add Project</button>
       </div>
-      <div className="flex gap-3 mb-5">
+      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.25rem'}}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search projects…"
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
+          className={inputClass} style={{...inputStyle,width:256}} />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+          className={inputClass} style={{...inputStyle,width:'auto'}}>
           <option value="All">All Statuses</option>
           {PROJECT_STATUSES.map(s => <option key={s}>{s}</option>)}
         </select>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {filtered.length === 0 && <div className="col-span-3 text-center py-16 text-slate-400">No projects yet</div>}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
+        {filtered.length === 0 && <div style={{gridColumn:'1/-1',textAlign:'center',padding:'4rem 0',color:'#8A8278'}}>No projects yet</div>}
         {filtered.map(p => {
           const pct = p.budget ? Math.min(100, Math.round((p.spent / p.budget) * 100)) : 0
           const over = p.spent > p.budget && p.budget > 0
           return (
-            <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-1">
-                <h3 className="font-semibold text-slate-800 pr-2">{p.name}</h3>
+            <div key={p.id} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem'}}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'0.25rem'}}>
+                <h3 style={{fontWeight:500,color:'#2A2520',fontSize:'0.9rem',paddingRight:'0.5rem'}}>{p.name}</h3>
                 <Badge status={p.status} />
               </div>
-              <p className="text-sm text-slate-500 mb-4">{clients.find(c => c.id === p.client_id)?.name || '—'}</p>
+              <p style={{fontSize:'0.78rem',color:'#8A8278',marginBottom:'1rem'}}>{clients.find(c => c.id === p.client_id)?.name || '—'}</p>
               {p.budget > 0 && (
-                <div className="mb-3">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Budget: <span className="font-medium text-slate-700">${Number(p.budget).toLocaleString()}</span></span>
-                    <span className={over ? 'text-rose-600 font-medium' : ''}>Spent: ${Number(p.spent).toLocaleString()}{over && ' ⚠️'}</span>
+                <div style={{marginBottom:'0.75rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.72rem',color:'#8A8278',marginBottom:'0.35rem'}}>
+                    <span>Budget: <span style={{color:'#2A2520',fontWeight:500}}>${Number(p.budget).toLocaleString()}</span></span>
+                    <span style={{color: over ? '#C4622D' : '#8A8278'}}>Spent: ${Number(p.spent).toLocaleString()}{over && ' ⚠️'}</span>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5">
-                    <div className={`h-1.5 rounded-full ${over ? 'bg-rose-400' : pct > 80 ? 'bg-amber-400' : 'bg-teal-500'}`} style={{ width: `${pct}%` }} />
+                  <div style={{width:'100%',background:'#E8E0D5',borderRadius:4,height:3}}>
+                    <div style={{height:3,borderRadius:4,width:`${pct}%`,background: over ? '#C4622D' : pct > 80 ? '#B8963E' : '#6B7C6E'}} />
                   </div>
                 </div>
               )}
-              {p.notes && <p className="text-xs text-slate-400 mb-3 line-clamp-2">{p.notes}</p>}
-              <div className="flex justify-end border-t border-slate-100 pt-3">
+              {p.notes && <p style={{fontSize:'0.72rem',color:'#C4B5A0',marginBottom:'0.75rem',overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{p.notes}</p>}
+              <div style={{display:'flex',justifyContent:'flex-end',borderTop:'1px solid rgba(42,37,32,0.06)',paddingTop:'0.75rem'}}>
                 <Actions onEdit={() => setModal(p)} onDelete={() => setDeleteTarget(p)} />
               </div>
             </div>
@@ -772,24 +907,24 @@ if (modal === 'add') await supabase.from('vendors').insert({ ...form, user_id })
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Vendors</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ Add Vendor</button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Vendors</h2>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ Add Vendor</button>
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search vendors…"
-        className="mb-5 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-72" />
-      <div className="grid grid-cols-3 gap-4">
-        {filtered.length === 0 && <div className="col-span-3 text-center py-16 text-slate-400">No vendors yet</div>}
+        className={inputClass} style={{...inputStyle,marginBottom:'1.25rem',width:280}} />
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
+        {filtered.length === 0 && <div style={{gridColumn:'1/-1',textAlign:'center',padding:'4rem 0',color:'#8A8278'}}>No vendors yet</div>}
         {filtered.map(v => (
-          <div key={v.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-2">
-              <h3 className="font-semibold text-slate-800">{v.name}</h3>
+          <div key={v.id} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem'}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'0.5rem'}}>
+              <h3 style={{fontWeight:500,color:'#2A2520',fontSize:'0.9rem'}}>{v.name}</h3>
               <Actions onEdit={() => setModal(v)} onDelete={() => setDeleteTarget(v)} />
             </div>
-            <p className="text-sm text-slate-500">Rep: {v.rep}</p>
-            <p className="text-sm text-slate-500 mb-3">{v.email}</p>
-            {v.discount && <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-full text-xs">{v.discount}</span>}
-            {v.notes && <p className="text-xs text-slate-400 mt-2">{v.notes}</p>}
+            <p style={{fontSize:'0.78rem',color:'#8A8278'}}>Rep: {v.rep}</p>
+            <p style={{fontSize:'0.78rem',color:'#8A8278',marginBottom:'0.75rem'}}>{v.email}</p>
+            {v.discount && <span style={{background:'#F5EDD8',color:'#B8963E',padding:'0.15rem 0.5rem',borderRadius:10,fontSize:'0.72rem',fontFamily:"'DM Mono', monospace"}}>{v.discount}</span>}
+            {v.notes && <p style={{fontSize:'0.72rem',color:'#C4B5A0',marginTop:'0.5rem'}}>{v.notes}</p>}
           </div>
         ))}
       </div>
@@ -832,34 +967,36 @@ if (modal === 'add') await supabase.from('items').insert({ ...data, user_id })
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Items & Procurement</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ Add Item</button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Items & Procurement</h2>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ Add Item</button>
       </div>
-      <div className="flex gap-3 mb-5">
+      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.25rem'}}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items…"
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
+          className={inputClass} style={{...inputStyle,width:256}} />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+          className={inputClass} style={{...inputStyle,width:'auto'}}>
           <option value="All">All Statuses</option>
           {ITEM_STATUSES.map(s => <option key={s}>{s}</option>)}
         </select>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr className="text-left text-slate-500">
-              {['Item','Project','Vendor','Cost','Status',''].map(h => <th key={h} className="px-5 py-3 font-medium">{h}</th>)}
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+        <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+          <thead>
+            <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+              {['Item','Project','Vendor','Cost','Status',''].map(h => (
+                <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No items yet</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} style={{padding:'2rem',textAlign:'center',color:'#8A8278'}}>No items yet</td></tr>}
             {filtered.map(i => (
-              <tr key={i.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-5 py-3 font-medium">{i.name}</td>
-                <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
-                <td className="px-5 py-3 text-slate-500">{vendors.find(v => v.id === i.vendor_id)?.name || '—'}</td>
-                <td className="px-5 py-3">${Number(i.cost).toLocaleString()}</td>
+              <tr key={i.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{i.name}</td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{vendors.find(v => v.id === i.vendor_id)?.name || '—'}</td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(i.cost).toLocaleString()}</td>
                 <td className="px-5 py-3"><Badge status={i.status} /></td>
                 <td className="px-5 py-3"><Actions onEdit={() => setModal(i)} onDelete={() => setDeleteTarget(i)} /></td>
               </tr>
@@ -1053,7 +1190,7 @@ async function handleDelete() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-slate-800">Invoices</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ New Invoice</button>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ New Invoice</button>
       </div>
       {totalOutstanding > 0 && (
         <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 text-sm">
@@ -1136,32 +1273,31 @@ if (modal === 'add') await supabase.from('tasks').insert({ ...form, user_id })
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Tasks</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ Add Task</button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Tasks</h2>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ Add Task</button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
         {TASK_PRIORITIES.map(priority => {
-          const borderColor = priority === 'Today' ? 'border-rose-200' : priority === 'This Week' ? 'border-amber-200' : 'border-slate-200'
+          const accentColor = priority === 'Today' ? '#C4622D' : priority === 'This Week' ? '#B8963E' : '#6B7C6E'
           const ptasks = tasks.filter(t => t.priority === priority)
           return (
-            <div key={priority} className={`bg-white rounded-xl border-2 ${borderColor} p-5`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700">{priority}</h3>
-                <span className="text-xs text-slate-400">{ptasks.filter(t => !t.done).length} left</span>
+            <div key={priority} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',borderTop:`3px solid ${accentColor}`}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+                <h3 style={{fontFamily:"'DM Mono', monospace",fontSize:'0.65rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#2A2520'}}>{priority}</h3>
+                <span style={{fontSize:'0.7rem',color:'#8A8278'}}>{ptasks.filter(t => !t.done).length} left</span>
               </div>
-              <div className="flex flex-col gap-2">
-                {ptasks.length === 0 && <p className="text-xs text-slate-400 py-2">No tasks</p>}
+              <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                {ptasks.length === 0 && <p style={{fontSize:'0.75rem',color:'#C4B5A0',padding:'0.5rem 0'}}>No tasks</p>}
                 {ptasks.map(t => (
-                  <div key={t.id} className="flex items-start gap-2 group">
-                    <button onClick={() => toggleDone(t)}
-                      className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${t.done ? 'bg-teal-500 border-teal-500' : 'border-slate-300'}`}>
-                      {t.done && <span className="text-white text-xs">✓</span>}
+                  <div key={t.id} style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}>
+                    <button onClick={() => toggleDone(t)} style={{width:15,height:15,borderRadius:3,border:`1px solid ${t.done ? '#C4622D' : 'rgba(42,37,32,0.2)'}`,flexShrink:0,marginTop:2,background: t.done ? '#C4622D' : 'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+                      {t.done && <span style={{color:'white',fontSize:'0.6rem'}}>✓</span>}
                     </button>
-                    <span className={`text-sm flex-1 ${t.done ? 'line-through text-slate-400' : 'text-slate-600'}`}>{t.title}</span>
-                    <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                      <button onClick={() => setModal(t)} className="text-slate-300 hover:text-teal-600"><Pencil size={13} /></button>
-                      <button onClick={() => setDeleteTarget(t)} className="text-slate-300 hover:text-rose-600"><Trash2 size={13} /></button>
+                    <span style={{fontSize:'0.82rem',flex:1,color: t.done ? '#C4B5A0' : '#2A2520',textDecoration: t.done ? 'line-through' : 'none'}}>{t.title}</span>
+                    <div style={{display:'flex',gap:'0.25rem',flexShrink:0}}>
+                      <button onClick={() => setModal(t)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Pencil size={13} /></button>
+                      <button onClick={() => setDeleteTarget(t)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Trash2 size={13} /></button>
                     </div>
                   </div>
                 ))}
@@ -1265,56 +1401,56 @@ function Files({ projects, clients }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Files</h2>
-        <label className={`flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-teal-700 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-          {uploading ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Files</h2>
+        <label style={{display:'flex',alignItems:'center',gap:'0.4rem',background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,cursor: uploading ? 'not-allowed' : 'pointer',opacity: uploading ? 0.6 : 1}}>
+          {uploading ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
           {uploading ? 'Uploading…' : 'Upload File'}
-          <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
+          <input type="file" style={{display:'none'}} onChange={handleUpload} disabled={uploading} />
         </label>
       </div>
-      <div className="flex gap-3 mb-5">
+      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.25rem'}}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search files…"
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
+          className={inputClass} style={{...inputStyle,width:256}} />
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+          className={inputClass} style={{...inputStyle,width:'auto'}}>
           <option value="">All Projects</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
       {loading ? <LoadingSpinner /> : (
-        <div className="grid grid-cols-4 gap-4">
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem'}}>
           {filtered.length === 0 && (
-            <div className="col-span-4 text-center py-16 text-slate-400">
+            <div style={{gridColumn:'1/-1',textAlign:'center',padding:'4rem 0',color:'#8A8278',fontSize:'0.82rem'}}>
               No files yet — upload mood boards, photos, or documents
             </div>
           )}
           {filtered.map(f => (
-            <div key={f.name} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
-              <div className="h-36 bg-slate-100 flex items-center justify-center overflow-hidden">
+            <div key={f.name} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+              <div style={{height:140,background:'#E8E0D5',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
                 {isImage(f.name) && f.signedUrl
-                  ? <img src={f.signedUrl} alt={f.displayName} className="w-full h-full object-cover" />
-                  : <FileImage size={40} className="text-slate-300" />
+                  ? <img src={f.signedUrl} alt={f.displayName} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                  : <FileImage size={36} style={{color:'#C4B5A0'}} />
                 }
               </div>
-              <div className="p-3">
-                <p className="text-sm font-medium text-slate-700 truncate">{f.displayName}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{formatSize(f.metadata?.size)}</p>
+              <div style={{padding:'0.75rem'}}>
+                <p style={{fontSize:'0.82rem',fontWeight:500,color:'#2A2520',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.displayName}</p>
+                <p style={{fontSize:'0.72rem',color:'#C4B5A0',marginTop:2}}>{formatSize(f.metadata?.size)}</p>
                 {f.projectId && (
-                  <p className="text-xs text-teal-600 mt-0.5 truncate">
+                  <p style={{fontSize:'0.72rem',color:'#6B7C6E',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                     {projects.find(p => p.id === f.projectId)?.name || ''}
                   </p>
                 )}
-                <div className="flex gap-2 mt-2">
+                <div style={{display:'flex',gap:'0.5rem',marginTop:'0.5rem',alignItems:'center'}}>
                   {f.signedUrl && (
                     <a href={f.signedUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800">
-                      <Download size={13} /> View
+                      style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#C4622D',textDecoration:'none'}}>
+                      <Download size={12} /> View
                     </a>
                   )}
                   <button onClick={() => setDeleteTarget(f)}
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 ml-auto">
-                    <Trash2 size={13} /> Delete
+                    style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',marginLeft:'auto'}}>
+                    <Trash2 size={12} /> Delete
                   </button>
                 </div>
               </div>
@@ -1376,32 +1512,34 @@ if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">Calendar</h2>
-        <button onClick={() => setModal('add')} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700">+ Add Event</button>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Calendar</h2>
+        <button onClick={() => setModal('add')} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>+ Add Event</button>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-700">{monthName}</h3>
-          <div className="flex gap-2">
-            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="px-3 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50">← Prev</button>
-            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="px-3 py-1 border border-slate-200 rounded text-sm hover:bg-slate-50">Next →</button>
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+          <h3 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.2rem',fontWeight:400,color:'#2A2520'}}>{monthName}</h3>
+          <div style={{display:'flex',gap:'0.5rem'}}>
+            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} style={{padding:'0.3rem 0.75rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.78rem',background:'transparent',color:'#4A4540',cursor:'pointer'}}>← Prev</button>
+            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} style={{padding:'0.3rem 0.75rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.78rem',background:'transparent',color:'#4A4540',cursor:'pointer'}}>Next →</button>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-xs text-slate-500 mb-2">
-          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => <div key={d} className="py-2 font-medium">{d}</div>)}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,textAlign:'center',marginBottom:8}}>
+          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+            <div key={d} style={{padding:'0.5rem 0',fontFamily:"'DM Mono', monospace",fontSize:'0.6rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278'}}>{d}</div>
+          ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
           {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
             const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
             const dayEvents = eventsOnDay(day)
             return (
-              <div key={day} className={`min-h-16 p-1.5 border rounded-lg ${isToday ? 'bg-teal-50 border-teal-300' : 'border-slate-100 hover:bg-slate-50'}`}>
-                <span className={`text-xs font-medium block mb-1 ${isToday ? 'text-teal-700' : 'text-slate-600'}`}>{day}</span>
+              <div key={day} style={{minHeight:64,padding:6,border:`1px solid ${isToday ? '#C4622D' : 'rgba(42,37,32,0.08)'}`,borderRadius:6,background: isToday ? '#F5E6DE' : 'transparent'}}>
+                <span style={{fontSize:'0.72rem',fontWeight:500,display:'block',marginBottom:4,color: isToday ? '#C4622D' : '#4A4540'}}>{day}</span>
                 {dayEvents.map(e => (
                   <div key={e.id} onClick={() => setModal(e)}
-                    className={`text-xs rounded px-1 mb-0.5 truncate cursor-pointer ${typeColors[e.type] || 'bg-slate-100 text-slate-600'}`}>
+                    style={{...(typeColors[e.type]||{background:'#E8E0D5',color:'#8A8278'}),fontSize:'0.65rem',borderRadius:3,padding:'0.1rem 0.3rem',marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer'}}>
                     {e.title}
                   </div>
                 ))}
