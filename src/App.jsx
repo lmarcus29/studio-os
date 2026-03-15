@@ -1275,12 +1275,13 @@ if (modal === 'add') await supabase.from('items').insert({ ...data, user_id })
   )
 }
 
-function Invoices({ invoices, clients, projects, items, reload }) {
+function Invoices({ invoices, clients, projects, items, payments, reload }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [expandedInvoice, setExpandedInvoice] = useState(null)
 
   const filtered = invoices.filter(i =>
     (i.num.toLowerCase().includes(search.toLowerCase()) ||
@@ -1521,35 +1522,83 @@ async function handleDelete() {
           {INVOICE_STATUSES.map(s => <option key={s}>{s}</option>)}
         </select>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr className="text-left text-slate-500">
-              {['Invoice #','Client','Project','Amount','Due Date','Status',''].map(h => <th key={h} className="px-5 py-3 font-medium">{h}</th>)}
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+        <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+          <thead>
+            <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+              {['Invoice #','Client','Project','Amount','Paid','Balance','Due Date','Status',''].map(h => (
+                <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">No invoices yet</td></tr>}
-            {filtered.map(i => (
-              <tr key={i.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="px-5 py-3 font-medium">{i.num}</td>
-                <td className="px-5 py-3 text-slate-500">{clients.find(c => c.id === i.client_id)?.name || '—'}</td>
-                <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
-                <td style={{padding:'0.75rem 1.25rem',color:'#4A4540',fontWeight:500}}>
-    ${Number(i.amount || (i.line_items || []).reduce((s, l) => s + (Number(l.amount) || 0), 0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
-  </td>
-                <td className="px-5 py-3 text-slate-500">{i.due ? new Date(i.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
-                <td className="px-5 py-3"><Badge status={i.status} /></td>
-               <td className="px-5 py-3">
-                  <div className="flex gap-2 items-center justify-end">
-                    <button onClick={() => generatePDF(i)} className="text-slate-400 hover:text-teal-600" title="Download PDF"><Download size={15} /></button>
-                    <button onClick={() => handleSendReminder(i)} className="text-slate-400 hover:text-amber-500" title="Send reminder"><Mail size={15} /></button>
-                    <button onClick={() => setModal(i)} className="text-slate-400 hover:text-teal-600"><Pencil size={15} /></button>
-                    <button onClick={() => setDeleteTarget(i)} className="text-slate-400 hover:text-rose-600"><Trash2 size={15} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {filtered.length === 0 && <tr><td colSpan={9} style={{padding:'2rem',textAlign:'center',color:'#8A8278'}}>No invoices yet</td></tr>}
+            {filtered.map(i => {
+              const invoicePayments = payments.filter(p => p.invoice_id === i.id)
+              const totalPaid = invoicePayments.reduce((s, p) => s + (Number(p.amount) || 0), 0)
+              const balance = Number(i.amount || 0) - totalPaid
+              const isExpanded = expandedInvoice === i.id
+              return (
+                <React.Fragment key={i.id}>
+                  <tr style={{borderBottom: isExpanded ? 'none' : '1px solid rgba(42,37,32,0.04)'}}>
+                    <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{i.num}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{clients.find(c => c.id === i.client_id)?.name || '—'}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#4A4540',fontWeight:500}}>${Number(i.amount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#6B7C6E'}}>{totalPaid > 0 ? `$${totalPaid.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—'}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color: balance <= 0 ? '#6B7C6E' : balance < Number(i.amount||0) ? '#B8963E' : '#C4622D',fontWeight:500}}>${Math.max(0,balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{i.due ? new Date(i.due+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+                    <td style={{padding:'0.75rem 1.25rem'}}><Badge status={i.status} /></td>
+                    <td style={{padding:'0.75rem 1.25rem'}}>
+                      <div style={{display:'flex',gap:'0.5rem',alignItems:'center',justifyContent:'flex-end'}}>
+                        <button onClick={() => setExpandedInvoice(isExpanded ? null : i.id)} style={{color: isExpanded ? '#C4622D' : '#C4B5A0',background:'none',border:'none',cursor:'pointer',fontSize:'0.72rem',fontFamily:"'DM Mono', monospace",letterSpacing:'0.05em'}} title="Log payment">
+                          {isExpanded ? 'close' : '$pay'}
+                        </button>
+                        <button onClick={() => generatePDF(i)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}} title="Download PDF"><Download size={14} /></button>
+                        <button onClick={() => handleSendReminder(i)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}} title="Send reminder"><Mail size={14} /></button>
+                        <button onClick={() => setModal(i)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Pencil size={14} /></button>
+                        <button onClick={() => setDeleteTarget(i)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+                      <td colSpan={9} style={{padding:'0 1.25rem 1.25rem'}}>
+                        <div style={{background:'#F7F3EE',borderRadius:6,padding:'1rem'}}>
+                          <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.75rem'}}>Payment History</div>
+                          {invoicePayments.length === 0
+                            ? <p style={{fontSize:'0.78rem',color:'#C4B5A0',marginBottom:'0.75rem'}}>No payments recorded yet</p>
+                            : <div style={{marginBottom:'0.75rem'}}>
+                                {invoicePayments.map(p => (
+                                  <div key={p.id} style={{display:'flex',alignItems:'center',gap:'1rem',padding:'0.4rem 0',borderBottom:'1px solid rgba(42,37,32,0.06)',fontSize:'0.78rem'}}>
+                                    <span style={{color:'#2A2520',fontWeight:500}}>${Number(p.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                                    <span style={{color:'#8A8278'}}>{p.date ? new Date(p.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span>
+                                    <span style={{color:'#8A8278',fontFamily:"'DM Mono', monospace",fontSize:'0.65rem'}}>{p.method}</span>
+                                    {p.notes && <span style={{color:'#C4B5A0',fontStyle:'italic'}}>{p.notes}</span>}
+                                    <button onClick={async () => {
+                                      await supabase.from('payments').delete().eq('id', p.id)
+                                      reload()
+                                    }} style={{marginLeft:'auto',color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Trash2 size={12} /></button>
+                                  </div>
+                                ))}
+                              </div>
+                          }
+                          <PaymentForm invoiceId={i.id} invoiceAmount={Number(i.amount||0)} totalPaid={totalPaid} onSave={async (form) => {
+                            const user_id = (await supabase.auth.getUser()).data.user.id
+                            await supabase.from('payments').insert({ ...form, invoice_id: i.id, user_id })
+                            const newPaid = totalPaid + Number(form.amount)
+                            if (newPaid >= Number(i.amount||0)) {
+                              await supabase.from('invoices').update({ status: 'Paid' }).eq('id', i.id)
+                            }
+                            reload()
+                          }} />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -2412,5 +2461,48 @@ function TimeLog({ project, timeLogs, reload, client }) {
     </div>
   )
 }
+function PaymentForm({ invoiceId, invoiceAmount, totalPaid, onSave }) {
+  const balance = invoiceAmount - totalPaid
+  const [form, setForm] = useState({ amount: String(balance.toFixed(2)), date: new Date().toISOString().split('T')[0], method: 'Check', notes: '' })
+  const [loading, setLoading] = useState(false)
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const valid = form.amount && Number(form.amount) > 0 && form.date
 
+  async function handleSave() {
+    setLoading(true)
+    await onSave(form)
+    setForm({ amount: '', date: new Date().toISOString().split('T')[0], method: 'Check', notes: '' })
+    setLoading(false)
+  }
+
+  return (
+    <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'0.75rem',marginTop:'0.25rem'}}>
+      <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.6rem'}}>Log Payment</div>
+      <div style={{display:'grid',gridTemplateColumns:'120px 140px 160px 1fr auto',gap:'0.5rem',alignItems:'flex-end'}}>
+        <Field label="Amount ($)">
+          <input type="number" value={form.amount} onChange={e => set('amount', e.target.value)} className={inputClass} style={inputStyle} />
+        </Field>
+        <Field label="Date">
+          <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass} style={inputStyle} />
+        </Field>
+        <Field label="Method">
+          <select value={form.method} onChange={e => set('method', e.target.value)} className={inputClass} style={inputStyle}>
+            {['Check','ACH','Credit Card','Zelle','Venmo','Cash','Other'].map(m => <option key={m}>{m}</option>)}
+          </select>
+        </Field>
+        <Field label="Notes">
+          <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional note" className={inputClass} style={inputStyle} />
+        </Field>
+        <button onClick={handleSave} disabled={!valid || loading} style={{background: valid && !loading ? '#C4622D' : '#C4B5A0',color:'white',padding:'0.5rem 1rem',borderRadius:4,fontSize:'0.78rem',border:'none',cursor: valid ? 'pointer' : 'not-allowed',height:36,display:'flex',alignItems:'center',gap:'0.4rem',flexShrink:0}}>
+          {loading && <Loader size={12} className="animate-spin" />} Save
+        </button>
+      </div>
+      {balance > 0 && (
+        <p style={{fontSize:'0.72rem',color:'#8A8278',marginTop:'0.5rem'}}>
+          Balance remaining after this payment: <span style={{color: Number(form.amount) >= balance ? '#6B7C6E' : '#C4622D',fontWeight:500}}>${Math.max(0, balance - (Number(form.amount)||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+        </p>
+      )}
+    </div>
+  )
+}
 
