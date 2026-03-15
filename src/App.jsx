@@ -213,6 +213,8 @@ export default function App() {
   const [invoices, setInvoices] = useState([])
   const [tasks, setTasks] = useState([])
   const [events, setEvents] = useState([])
+  const [payments, setPayments] = useState([])
+  const [timeLogs, setTimeLogs] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
 
   useEffect(() => {
@@ -228,7 +230,7 @@ export default function App() {
 
   const loadAll = useCallback(async () => {
     setDataLoading(true)
-    const [c, p, v, i, inv, t, e] = await Promise.all([
+    const [c, p, v, i, inv, t, e, pay, tl] = await Promise.all([
       supabase.from('clients').select('*').order('created_at'),
       supabase.from('projects').select('*').order('created_at'),
       supabase.from('vendors').select('*').order('created_at'),
@@ -236,6 +238,8 @@ export default function App() {
       supabase.from('invoices').select('*').order('created_at'),
       supabase.from('tasks').select('*').order('created_at'),
       supabase.from('events').select('*').order('created_at'),
+      supabase.from('payments').select('*').order('created_at'),
+      supabase.from('time_logs').select('*').order('created_at'),
     ])
     setClients(c.data || [])
     setProjects(p.data || [])
@@ -244,6 +248,8 @@ export default function App() {
     setInvoices(inv.data || [])
     setTasks(t.data || [])
     setEvents(e.data || [])
+    setPayments(pay.data || [])
+    setTimeLogs(tl.data || [])
     setDataLoading(false)
   }, [])
 
@@ -261,7 +267,7 @@ export default function App() {
 
   if (!session) return <AuthScreen />
 
-  const shared = { clients, projects, vendors, items, invoices, tasks, events, reload: loadAll }
+  const shared = { clients, projects, vendors, items, invoices, tasks, events, payments, timeLogs, reload: loadAll }
 
   return (
 <div className="h-screen flex flex-col overflow-hidden" style={{background:'#F7F3EE',fontFamily:"'DM Sans', sans-serif"}}>
@@ -329,27 +335,63 @@ export default function App() {
 // ── MODALS ───────────────────────────────────────────────
 
 function ClientModal({ client, onSave, onClose }) {
-  const [form, setForm] = useState(client || { name: '', email: '', phone: '', status: 'Active', notes: '' })
+  const [form, setForm] = useState(client || { name: '', email: '', phone: '', status: 'Active', notes: '', billing_type: 'commission', commission_rate: '', hourly_rate: '', retainer_balance: '0' })
   const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 modal-overlay">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{client ? 'Edit Client' : 'Add Client'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+    <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem'}}>
+      <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:460,maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.25rem'}}>
+          <h3 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.3rem',fontWeight:400,color:'#2A2520'}}>{client ? 'Edit Client' : 'Add Client'}</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#8A8278'}}><X size={18} /></button>
         </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Client or family name" className={inputClass} /></Field>
-          <Field label="Email"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" className={inputClass} /></Field>
-          <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" className={inputClass} /></Field>
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Client or family name" className={inputClass} style={inputStyle} /></Field>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Email"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" className={inputClass} style={inputStyle} /></Field>
+            <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" className={inputClass} style={inputStyle} /></Field>
+          </div>
           <Field label="Status">
-            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
+            <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass} style={inputStyle}>
               {['Active','Inactive','Lead'].map(s => <option key={s}>{s}</option>)}
             </select>
           </Field>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Referral source, preferences…" className={inputClass} /></Field>
+          {/* Billing section */}
+          <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'1rem',marginTop:'0.25rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.75rem'}}>Billing</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+              <Field label="Billing Type">
+                <select value={form.billing_type} onChange={e => set('billing_type', e.target.value)} className={inputClass} style={inputStyle}>
+                  <option value="commission">Commission / Markup</option>
+                  <option value="hourly">Hourly Rate</option>
+                  <option value="both">Both</option>
+                </select>
+              </Field>
+              {(form.billing_type === 'commission' || form.billing_type === 'both') && (
+                <Field label="Commission Rate (%)">
+                  <input type="number" value={form.commission_rate} onChange={e => set('commission_rate', e.target.value)} placeholder="30" className={inputClass} style={inputStyle} />
+                </Field>
+              )}
+              {(form.billing_type === 'hourly' || form.billing_type === 'both') && (
+                <Field label="Hourly Rate ($)">
+                  <input type="number" value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)} placeholder="150" className={inputClass} style={inputStyle} />
+                </Field>
+              )}
+            </div>
+          </div>
+          <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'1rem',marginTop:'0.25rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.75rem'}}>Retainer</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+              <Field label="Retainer Balance ($)">
+                <input type="number" value={form.retainer_balance} onChange={e => set('retainer_balance', e.target.value)} placeholder="0" className={inputClass} style={inputStyle} />
+              </Field>
+              <div style={{display:'flex',alignItems:'flex-end',paddingBottom:'0.1rem'}}>
+                <div style={{fontSize:'0.72rem',color:'#8A8278',lineHeight:1.4}}>Add to balance when retainer is received. Invoices will draw down from this amount.</div>
+              </div>
+            </div>
+          </div>
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Referral source, preferences…" className={inputClass} style={inputStyle} /></Field>
         </div>
         <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={client ? 'Save Changes' : 'Add Client'} />
       </div>
@@ -462,46 +504,193 @@ function ItemModal({ item, projects, vendors, onSave, onClose }) {
   )
 }
 
-function InvoiceModal({ invoice, clients, projects, onSave, onClose }) {
-  const [form, setForm] = useState(invoice || { num: '', client_id: clients[0]?.id || '', project_id: '', amount: '', due: '', status: 'Pending', notes: '' })
+function InvoiceModal({ invoice, clients, projects, items, onSave, onClose }) {
+  const defaultLineItems = invoice?.line_items?.length ? invoice.line_items : [{ description: '', amount: '' }]
+  const autoNum = `INV-${String(Date.now()).slice(-4)}`
+  const [form, setForm] = useState(invoice || { num: autoNum, client_id: clients[0]?.id || '', project_id: '', due: '', status: 'Pending', notes: '', tax_rate: '8.95', retainer_amount: '0', retainer_applied: '0' })
+  const [lineItems, setLineItems] = useState(defaultLineItems)
   const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
-  const valid = form.num.trim() && form.amount
+
+  const clientProjects = projects.filter(p => p.client_id === form.client_id)
+  const clientItems = items.filter(i => i.project_id === form.project_id)
+
+  function setLine(idx, field, value) {
+    setLineItems(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l))
+  }
+  function addLine() { setLineItems(prev => [...prev, { description: '', amount: '' }]) }
+  function removeLine(idx) { setLineItems(prev => prev.filter((_, i) => i !== idx)) }
+  function pullFromItems() {
+    const newLines = clientItems.map(i => ({ description: i.name, amount: String(i.cost || ''), item_id: i.id }))
+    setLineItems(prev => [...prev.filter(l => l.description || l.amount), ...newLines])
+  }
+
+  const subtotal = lineItems.reduce((sum, l) => sum + (Number(l.amount) || 0), 0)
+  const taxableSubtotal = lineItems.reduce((sum, l) => l.taxable === false ? sum : sum + (Number(l.amount) || 0), 0)
+  const taxAmount = taxableSubtotal * (Number(form.tax_rate) || 0) / 100
+  const retainerApplied = Math.min(Number(form.retainer_applied) || 0, subtotal + taxAmount)
+  const total = subtotal + taxAmount - retainerApplied
+
+  const valid = form.num.trim() && lineItems.some(l => l.description.trim())
+
+  function handleSave() {
+    const amount = total
+    onSave({ ...form, line_items: lineItems, amount }, setLoading)
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{invoice ? 'Edit Invoice' : 'New Invoice'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+    <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem'}}>
+      <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:580,maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.25rem'}}>
+          <h3 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.3rem',fontWeight:400,color:'#2A2520'}}>{invoice ? 'Edit Invoice' : 'New Invoice'}</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#8A8278'}}><X size={18} /></button>
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Invoice # *"><input value={form.num} onChange={e => set('num', e.target.value)} placeholder="INV-1001" className={inputClass} /></Field>
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+
+          {/* Invoice # and status */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Invoice # *"><input value={form.num} onChange={e => set('num', e.target.value)} placeholder="INV-1001" className={inputClass} style={inputStyle} /></Field>
             <Field label="Status">
-              <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass}>
+              <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass} style={inputStyle}>
                 {INVOICE_STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </Field>
           </div>
-          <Field label="Client">
-            <select value={form.client_id || ''} onChange={e => set('client_id', e.target.value)} className={inputClass}>
-              <option value="">— None —</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Project">
-            <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value)} className={inputClass}>
-              <option value="">— None —</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Amount ($) *"><input type="number" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" className={inputClass} /></Field>
-            <Field label="Due Date"><input type="date" value={form.due} onChange={e => set('due', e.target.value)} className={inputClass} /></Field>
+
+          {/* Client and project */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Client">
+              <select value={form.client_id || ''} onChange={e => { set('client_id', e.target.value); set('project_id', '') }} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Project">
+              <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
           </div>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Payment terms, notes…" className={inputClass} /></Field>
+
+          {/* Due date */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Due Date"><input type="date" value={form.due} onChange={e => set('due', e.target.value)} className={inputClass} style={inputStyle} /></Field>
+            <Field label="Tax Rate (%)"><input type="number" value={form.tax_rate} onChange={e => set('tax_rate', e.target.value)} placeholder="0" className={inputClass} style={inputStyle} /></Field>
+          </div>
+
+          {/* Line items */}
+          <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'1rem'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'0.75rem'}}>
+              <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Line Items</div>
+              {form.project_id && clientItems.length > 0 && (
+                <button onClick={pullFromItems} style={{fontSize:'0.72rem',color:'#C4622D',background:'none',border:'1px solid #C4622D',borderRadius:4,padding:'0.2rem 0.6rem',cursor:'pointer'}}>
+                  + Pull from Items
+                </button>
+              )}
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 120px 32px',gap:'0.5rem'}}>
+                <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#C4B5A0'}}>Description</div>
+                <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#C4B5A0'}}>Amount ($)</div>
+                <div />
+              </div>
+              {lineItems.map((line, idx) => (
+                <div key={idx} style={{display:'grid',gridTemplateColumns:'1fr 120px 32px',gap:'0.5rem',alignItems:'center'}}>
+                  <input value={line.description} onChange={e => setLine(idx, 'description', e.target.value)}
+                    placeholder="Item or service description" className={inputClass} style={inputStyle} />
+                  <input type="number" value={line.amount} onChange={e => setLine(idx, 'amount', e.target.value)}
+                    placeholder="0" className={inputClass} style={inputStyle} />
+                  <button onClick={() => removeLine(idx)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button onClick={addLine} style={{alignSelf:'flex-start',fontSize:'0.75rem',color:'#6B7C6E',background:'none',border:'1px dashed rgba(42,37,32,0.2)',borderRadius:4,padding:'0.3rem 0.75rem',cursor:'pointer',marginTop:'0.25rem'}}>
+                + Add Line
+              </button>
+              {(() => {
+                const client = clients.find(c => c.id === form.client_id)
+                if (!client) return null
+                return (
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem',marginTop:'0.25rem'}}>
+                    {(client.billing_type === 'commission' || client.billing_type === 'both') && (
+                      <button onClick={() => {
+                        const billableTotal = lineItems.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+                        const commission = billableTotal * (Number(client.commission_rate) || 0) / 100
+                        setLineItems(prev => [...prev, { description: `Design Commission (${client.commission_rate}% markup on $${billableTotal.toLocaleString()})`, amount: String(commission.toFixed(2)), taxable: false }])
+                      }} style={{fontSize:'0.75rem',color:'#B8963E',background:'none',border:'1px dashed #B8963E',borderRadius:4,padding:'0.3rem 0.75rem',cursor:'pointer'}}>
+                        + Add Commission Line
+                      </button>
+                    )}
+                    {(client.billing_type === 'hourly' || client.billing_type === 'both') && (
+                      <div style={{display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                        <input type="number" id="hourly-input" placeholder="Hours" style={{width:70,padding:'0.3rem 0.5rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.78rem',background:'#FDFAF6'}} />
+                        <button onClick={() => {
+                          const hrs = Number(document.getElementById('hourly-input').value) || 0
+                          const fee = hrs * (Number(client.hourly_rate) || 0)
+                          setLineItems(prev => [...prev, { description: `Design Services (${hrs} hrs @ $${client.hourly_rate}/hr)`, amount: String(fee.toFixed(2)), taxable: false }])
+                        }} style={{fontSize:'0.75rem',color:'#6B7C6E',background:'none',border:'1px dashed #6B7C6E',borderRadius:4,padding:'0.3rem 0.75rem',cursor:'pointer'}}>
+                          + Add Hourly Line
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+
+          {/* Retainer */}
+          {(() => {
+            const client = clients.find(c => c.id === form.client_id)
+            const balance = Number(client?.retainer_balance || 0)
+            return balance > 0 ? (
+              <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'1rem'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'0.75rem'}}>
+                  <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Retainer</div>
+                  <div style={{fontSize:'0.72rem',color:'#6B7C6E'}}>Available balance: <span style={{fontWeight:600}}>${balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+                  <Field label="Apply Retainer ($)">
+                    <input type="number" value={form.retainer_applied}
+                      onChange={e => set('retainer_applied', Math.min(Number(e.target.value), balance, subtotal + taxAmount).toString())}
+                      placeholder="0" className={inputClass} style={inputStyle} />
+                  </Field>
+                  <div style={{display:'flex',alignItems:'flex-end',paddingBottom:'0.1rem'}}>
+                    <button onClick={() => set('retainer_applied', Math.min(balance, subtotal + taxAmount).toString())}
+                      style={{fontSize:'0.72rem',color:'#C4622D',background:'none',border:'1px solid #C4622D',borderRadius:4,padding:'0.3rem 0.6rem',cursor:'pointer'}}>
+                      Apply Full Balance
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null
+          })()}
+
+          {/* Totals */}
+          <div style={{background:'#F7F3EE',border:'1px solid rgba(42,37,32,0.08)',borderRadius:6,padding:'1rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.82rem',color:'#8A8278',marginBottom:'0.35rem'}}>
+              <span>Subtotal</span><span>${subtotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+            </div>
+            {Number(form.tax_rate) > 0 && taxableSubtotal > 0 && (
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.82rem',color:'#8A8278',marginBottom:'0.35rem'}}>
+                <span>Tax ({form.tax_rate}% on taxable items)</span><span>${taxAmount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+              </div>
+            )}
+            {retainerApplied > 0 && (
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.82rem',color:'#6B7C6E',marginBottom:'0.35rem'}}>
+                <span>Retainer Applied</span><span>−${retainerApplied.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+              </div>
+            )}
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.92rem',fontWeight:600,color:'#2A2520',borderTop:'1px solid rgba(42,37,32,0.1)',paddingTop:'0.5rem',marginTop:'0.35rem'}}>
+              <span>Total Due</span><span>${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+            </div>
+          </div>
+
+          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Payment terms, notes…" className={inputClass} style={inputStyle} /></Field>
         </div>
-        <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={invoice ? 'Save Changes' : 'Create Invoice'} />
+        <ModalFooter onClose={onClose} onSave={handleSave} valid={valid} loading={loading} label={invoice ? 'Save Changes' : 'Create Invoice'} />
       </div>
     </div>
   )
@@ -1041,7 +1230,7 @@ if (modal === 'add') await supabase.from('items').insert({ ...data, user_id })
   )
 }
 
-function Invoices({ invoices, clients, projects, reload }) {
+function Invoices({ invoices, clients, projects, items, reload }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modal, setModal] = useState(null)
@@ -1057,9 +1246,26 @@ function Invoices({ invoices, clients, projects, reload }) {
   async function handleSave(form, setLoading) {
     setLoading(true)
     const data = { ...form, amount: Number(form.amount) || 0, due: form.due || null, project_id: form.project_id || null, client_id: form.client_id || null }
-   const user_id = (await supabase.auth.getUser()).data.user.id
-if (modal === 'add') await supabase.from('invoices').insert({ ...data, user_id })
-    else await supabase.from('invoices').update(data).eq('id', modal.id)
+    const user_id = (await supabase.auth.getUser()).data.user.id
+
+    const retainerApplied = Number(form.retainer_applied) || 0
+    const previouslyApplied = modal !== 'add' ? Number(modal.retainer_applied) || 0 : 0
+    const retainerDiff = retainerApplied - previouslyApplied
+
+    if (modal === 'add') {
+      await supabase.from('invoices').insert({ ...data, user_id })
+    } else {
+      await supabase.from('invoices').update(data).eq('id', modal.id)
+    }
+
+    if (retainerDiff !== 0 && form.client_id) {
+      const client = clients.find(c => c.id === form.client_id)
+      if (client) {
+        const newBalance = Math.max(0, Number(client.retainer_balance || 0) - retainerDiff)
+        await supabase.from('clients').update({ retainer_balance: newBalance }).eq('id', form.client_id)
+      }
+    }
+
     setLoading(false)
     setModal(null)
     reload()
@@ -1171,35 +1377,67 @@ async function handleDelete() {
     doc.text('Description', 25, 107)
     doc.text('Amount', 165, 107, { align: 'right' })
 
-    // Line item
+    // Line items
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(50, 50, 50)
-    doc.text(project?.name || 'Services Rendered', 25, 120)
-    doc.text(`$${Number(invoice.amount).toLocaleString()}`, 165, 120, { align: 'right' })
+    const lineItems = invoice.line_items?.length ? invoice.line_items : [{ description: project?.name || 'Services Rendered', amount: invoice.amount }]
+    let yPos = 120
+    lineItems.forEach(line => {
+      doc.text(String(line.description || ''), 25, yPos)
+      doc.text(`$${Number(line.amount || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos, { align: 'right' })
+      yPos += 10
+    })
+
+    // Subtotal / tax / retainer
+    const subtotal = lineItems.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+    const taxRate = Number(invoice.tax_rate) || 0
+    const taxableSubtotal = lineItems.reduce((s, l) => l.taxable === false ? s : s + (Number(l.amount) || 0), 0)
+    const taxAmount = taxableSubtotal * taxRate / 100
+    const retainerApplied = Number(invoice.retainer_applied) || 0
+    const total = subtotal + taxAmount - retainerApplied
+
+    if (taxRate > 0) {
+      doc.setTextColor(120, 120, 120)
+      doc.setFontSize(9)
+      doc.text(`Subtotal`, 25, yPos + 4)
+      doc.text(`$${subtotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos + 4, { align: 'right' })
+      doc.text(`Tax (${taxRate}%)`, 25, yPos + 11)
+      doc.text(`$${taxAmount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos + 11, { align: 'right' })
+      yPos += 14
+    }
+    if (retainerApplied > 0) {
+      doc.setTextColor(107, 124, 110)
+      doc.setFontSize(9)
+      doc.text(`Retainer Applied`, 25, yPos + 4)
+      doc.text(`-$${retainerApplied.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos + 4, { align: 'right' })
+      yPos += 10
+    }
 
     // Total box
+    const totalBoxY = yPos + 8
     doc.setFillColor(42, 37, 32)
-    doc.rect(120, 135, 70, 14, 'F')
+    doc.rect(120, totalBoxY, 70, 14, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('Total:', 125, 144)
-    doc.text(`$${Number(invoice.amount).toLocaleString()}`, 185, 144, { align: 'right' })
+    doc.text('Total:', 125, totalBoxY + 9)
+    doc.text(`$${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 185, totalBoxY + 9, { align: 'right' })
 
     // Status
     doc.setTextColor(80, 80, 80)
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Status: ${invoice.status}`, 20, 144)
+    doc.text(`Status: ${invoice.status}`, 20, totalBoxY + 9)
 
     // Notes
     if (invoice.notes) {
+      const notesY = totalBoxY + 22
       doc.setDrawColor(200, 200, 200)
-      doc.line(20, 158, 190, 158)
+      doc.line(20, notesY, 190, notesY)
       doc.setFont('helvetica', 'bold')
-      doc.text('Notes:', 20, 166)
+      doc.text('Notes:', 20, notesY + 8)
       doc.setFont('helvetica', 'normal')
-      doc.text(invoice.notes, 20, 174, { maxWidth: 170 })
+      doc.text(invoice.notes, 20, notesY + 16, { maxWidth: 170 })
     }
 
     // Footer
@@ -1252,7 +1490,9 @@ async function handleDelete() {
                 <td className="px-5 py-3 font-medium">{i.num}</td>
                 <td className="px-5 py-3 text-slate-500">{clients.find(c => c.id === i.client_id)?.name || '—'}</td>
                 <td className="px-5 py-3 text-slate-500">{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
-                <td className="px-5 py-3 font-medium">${Number(i.amount).toLocaleString()}</td>
+                <td style={{padding:'0.75rem 1.25rem',color:'#4A4540',fontWeight:500}}>
+    ${Number(i.amount || (i.line_items || []).reduce((s, l) => s + (Number(l.amount) || 0), 0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+  </td>
                 <td className="px-5 py-3 text-slate-500">{i.due ? new Date(i.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                 <td className="px-5 py-3"><Badge status={i.status} /></td>
                <td className="px-5 py-3">
@@ -1268,7 +1508,7 @@ async function handleDelete() {
           </tbody>
         </table>
       </div>
-      {modal && <InvoiceModal invoice={modal === 'add' ? null : modal} clients={clients} projects={projects} onSave={handleSave} onClose={() => setModal(null)} />}
+      {modal && <InvoiceModal invoice={modal === 'add' ? null : modal} clients={clients} projects={projects} items={items} onSave={handleSave} onClose={() => setModal(null)} />}
       {deleteTarget && <ConfirmDeleteModal name={deleteTarget.num} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
