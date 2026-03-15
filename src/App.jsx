@@ -216,6 +216,9 @@ export default function App() {
   const [payments, setPayments] = useState([])
   const [timeLogs, setTimeLogs] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
+  const [detailClient, setDetailClient] = useState(null)
+  const [detailProject, setDetailProject] = useState(null)
+  const [detailType, setDetailType] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -298,7 +301,7 @@ export default function App() {
           <div style={{padding:'1.25rem 0.75rem 0.5rem'}}>
             <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.2em',textTransform:'uppercase',color:'#C4B5A0',padding:'0 0.5rem',marginBottom:'0.4rem'}}>Workspace</div>
             {TABS.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setActiveTab(id)} style={{
+              <button key={id} onClick={() => { setActiveTab(id); setDetailClient(null); setDetailProject(null); setDetailType(null) }} style={{
                 display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.55rem 0.75rem',borderRadius:6,cursor:'pointer',
                 fontSize:'0.82rem',width:'100%',textAlign:'left',border:'none',marginBottom:'0.15rem',transition:'all 0.15s',
                 background: activeTab === id ? '#F5E6DE' : 'transparent',
@@ -315,15 +318,19 @@ export default function App() {
         <main style={{flex:1,overflowY:'auto',background:'#F7F3EE'}}>
           <div style={{padding:'1.5rem 2rem',flex:1}}>
             {dataLoading ? <LoadingSpinner /> : <>
-              {activeTab === 'dashboard' && <Dashboard {...shared} />}
-              {activeTab === 'clients' && <Clients {...shared} />}
-              {activeTab === 'projects' && <Projects {...shared} />}
-              {activeTab === 'items' && <Items {...shared} />}
-              {activeTab === 'vendors' && <Vendors {...shared} />}
-              {activeTab === 'invoices' && <Invoices {...shared} />}
-              {activeTab === 'calendar' && <CalendarView {...shared} />}
-              {activeTab === 'tasks' && <Tasks {...shared} />}
-              {activeTab === 'files' && <Files {...shared} />}
+              {detailType === 'client' && detailClient && <ClientDetail client={detailClient} {...shared} onBack={() => { setDetailClient(null); setDetailType(null) }} setDetailProject={(p) => { setDetailProject(p); setDetailType('project') }} />}
+              {detailType === 'project' && detailProject && <ProjectDetail project={detailProject} {...shared} onBack={() => { setDetailProject(null); setDetailType('client') }} />}
+              {!detailType && <>
+                {activeTab === 'dashboard' && <Dashboard {...shared} />}
+                {activeTab === 'clients' && <Clients {...shared} setDetailClient={(c) => { setDetailClient(c); setDetailType('client') }} />}
+                {activeTab === 'projects' && <Projects {...shared} setDetailProject={(p) => { setDetailProject(p); setDetailType('project') }} />}
+                {activeTab === 'items' && <Items {...shared} />}
+                {activeTab === 'vendors' && <Vendors {...shared} />}
+                {activeTab === 'invoices' && <Invoices {...shared} />}
+                {activeTab === 'calendar' && <CalendarView {...shared} />}
+                {activeTab === 'tasks' && <Tasks {...shared} />}
+                {activeTab === 'files' && <Files {...shared} />}
+              </>}
             </>}
           </div>
         </main>
@@ -335,7 +342,7 @@ export default function App() {
 // ── MODALS ───────────────────────────────────────────────
 
 function ClientModal({ client, onSave, onClose }) {
-  const [form, setForm] = useState(client || { name: '', email: '', phone: '', status: 'Active', notes: '', billing_type: 'commission', commission_rate: '', hourly_rate: '', retainer_balance: '0' })
+  const [form, setForm] = useState(client || { name: '', email: '', phone: '', name2: '', email2: '', phone2: '', street: '', city: '', state: '', zip: '', status: 'Active', notes: '', billing_type: 'commission', commission_rate: '', hourly_rate: '', retainer_balance: '0' })
   const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.name.trim()
@@ -347,11 +354,36 @@ function ClientModal({ client, onSave, onClose }) {
           <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#8A8278'}}><X size={18} /></button>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-          <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Client or family name" className={inputClass} style={inputStyle} /></Field>
+
+          {/* Primary contact */}
+          <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Primary Contact</div>
+          <Field label="Name *"><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="First and last name" className={inputClass} style={inputStyle} /></Field>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
             <Field label="Email"><input value={form.email} onChange={e => set('email', e.target.value)} placeholder="email@example.com" className={inputClass} style={inputStyle} /></Field>
             <Field label="Phone"><input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(000) 000-0000" className={inputClass} style={inputStyle} /></Field>
           </div>
+
+          {/* Secondary contact */}
+          <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'1rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.75rem'}}>Secondary Contact</div>
+            <Field label="Name"><input value={form.name2||''} onChange={e => set('name2', e.target.value)} placeholder="Spouse / partner name" className={inputClass} style={inputStyle} /></Field>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem',marginTop:'0.75rem'}}>
+              <Field label="Email"><input value={form.email2||''} onChange={e => set('email2', e.target.value)} placeholder="email@example.com" className={inputClass} style={inputStyle} /></Field>
+              <Field label="Phone"><input value={form.phone2||''} onChange={e => set('phone2', e.target.value)} placeholder="(000) 000-0000" className={inputClass} style={inputStyle} /></Field>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div style={{borderTop:'1px solid rgba(42,37,32,0.08)',paddingTop:'1rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.75rem'}}>Address</div>
+            <Field label="Street"><input value={form.street||''} onChange={e => set('street', e.target.value)} placeholder="123 Main Street" className={inputClass} style={inputStyle} /></Field>
+            <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:'0.75rem',marginTop:'0.75rem'}}>
+              <Field label="City"><input value={form.city||''} onChange={e => set('city', e.target.value)} placeholder="City" className={inputClass} style={inputStyle} /></Field>
+              <Field label="State"><input value={form.state||''} onChange={e => set('state', e.target.value)} placeholder="NY" className={inputClass} style={inputStyle} /></Field>
+              <Field label="Zip"><input value={form.zip||''} onChange={e => set('zip', e.target.value)} placeholder="11743" className={inputClass} style={inputStyle} /></Field>
+            </div>
+          </div>
+
           <Field label="Status">
             <select value={form.status} onChange={e => set('status', e.target.value)} className={inputClass} style={inputStyle}>
               {['Active','Inactive','Lead'].map(s => <option key={s}>{s}</option>)}
@@ -696,32 +728,45 @@ function InvoiceModal({ invoice, clients, projects, items, onSave, onClose }) {
   )
 }
 
-function TaskModal({ task, projects, onSave, onClose }) {
-  const [form, setForm] = useState(task || { title: '', priority: 'Today', done: false, project_id: '', notes: '' })
+function TaskModal({ task, projects, clients, onSave, onClose }) {
+  const [form, setForm] = useState(task || { title: '', priority: 'Today', done: false, client_id: '', project_id: '', notes: '' })
   const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.title.trim()
+  const clientProjects = projects.filter(p => p.client_id === form.client_id)
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{task ? 'Edit Task' : 'Add Task'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+    <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem'}}>
+      <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:440,maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.25rem'}}>
+          <h3 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.3rem',fontWeight:400,color:'#2A2520'}}>{task ? 'Edit Task' : 'Add Task'}</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#8A8278'}}><X size={18} /></button>
         </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Task *"><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="What needs to be done?" className={inputClass} /></Field>
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          <Field label="Task *">
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="What needs to be done?" className={inputClass} style={inputStyle} />
+          </Field>
           <Field label="Priority">
-            <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inputClass}>
+            <select value={form.priority} onChange={e => set('priority', e.target.value)} className={inputClass} style={inputStyle}>
               {TASK_PRIORITIES.map(p => <option key={p}>{p}</option>)}
             </select>
           </Field>
-          <Field label="Project (optional)">
-            <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value || null)} className={inputClass}>
-              <option value="">— None —</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Client (optional)">
+              <select value={form.client_id || ''} onChange={e => { set('client_id', e.target.value || ''); set('project_id', '') }} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Project (optional)">
+              <select value={form.project_id || ''} onChange={e => set('project_id', e.target.value || '')} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {(form.client_id ? clientProjects : projects).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Notes">
+            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Additional details…" className={inputClass} style={inputStyle} />
           </Field>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Additional details…" className={inputClass} /></Field>
         </div>
         <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={task ? 'Save Changes' : 'Add Task'} />
       </div>
@@ -941,7 +986,7 @@ function Dashboard({ clients, projects, invoices, tasks, events }) {
   )
 }
 
-function Clients({ clients, reload }) {
+function Clients({ clients, projects, invoices, tasks, events, payments, reload, setDetailClient }) {
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -996,7 +1041,7 @@ async function handleSave(form, setLoading) {
             {filtered.length === 0 && <tr><td colSpan={6} style={{padding:'2rem',textAlign:'center',color:'#8A8278'}}>No clients yet — add your first one!</td></tr>}
             {filtered.map(c => (
               <tr key={c.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
-                <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{c.name}</td>
+                <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#C4622D',cursor:'pointer'}} onClick={() => setDetailClient(c)}>{c.name}</td>
                 <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{c.email}</td>
                 <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{c.phone}</td>
                 <td style={{padding:'0.75rem 1.25rem'}}><Badge status={c.status} /></td>
@@ -1577,7 +1622,7 @@ if (modal === 'add') await supabase.from('tasks').insert({ ...form, user_id })
           )
         })}
       </div>
-      {modal && <TaskModal task={modal === 'add' ? null : modal} projects={projects} onSave={handleSave} onClose={() => setModal(null)} />}
+      {modal && <TaskModal task={modal === 'add' ? null : modal} projects={projects} clients={clients} onSave={handleSave} onClose={() => setModal(null)} />}
       {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
@@ -1827,6 +1872,545 @@ if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
     </div>
   )
 }
+function ClientDetail({ client, projects, invoices, tasks, events, payments, clients, reload, onBack, setDetailProject }) {
+  const [activeSection, setActiveSection] = useState('projects')
+  const [modal, setModal] = useState(null)
 
+  const clientProjects = projects.filter(p => p.client_id === client.id)
+  const clientInvoices = invoices.filter(i => i.client_id === client.id)
+  const clientEvents = events.filter(e => e.client_id === client.id).sort((a, b) => a.date.localeCompare(b.date))
+  const clientTasks = tasks.filter(t => clientProjects.some(p => p.id === t.project_id))
+  const totalBilled = clientInvoices.reduce((s, i) => s + (Number(i.amount) || 0), 0)
+  const totalPaid = clientInvoices.filter(i => i.status === 'Paid').reduce((s, i) => s + (Number(i.amount) || 0), 0)
+  const outstanding = totalBilled - totalPaid
+
+  const sections = ['projects', 'invoices', 'meetings', 'tasks']
+
+  return (
+    <div>
+      {/* Back button */}
+      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'0.4rem',background:'none',border:'none',cursor:'pointer',color:'#8A8278',fontSize:'0.78rem',marginBottom:'1.25rem',padding:0}}>
+        ← Back to Clients
+      </button>
+
+      {/* Client header */}
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.5rem',marginBottom:'1.25rem'}}>
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'1rem'}}>
+          <div>
+            <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'2rem',fontWeight:300,color:'#2A2520',lineHeight:1}}>{client.name}</h2>
+            {client.name2 && <p style={{fontSize:'0.85rem',color:'#8A8278',marginTop:'0.25rem'}}>{client.name2}</p>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
+            <Badge status={client.status} />
+            <button onClick={() => setModal(client)} style={{background:'none',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,padding:'0.35rem 0.75rem',fontSize:'0.75rem',color:'#4A4540',cursor:'pointer'}}>Edit</button>
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1.25rem'}}>
+          {/* Contact info */}
+          <div>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#C4B5A0',marginBottom:'0.4rem'}}>Primary</div>
+            {client.email && <p style={{fontSize:'0.78rem',color:'#4A4540',marginBottom:'0.2rem'}}>{client.email}</p>}
+            {client.phone && <p style={{fontSize:'0.78rem',color:'#4A4540'}}>{client.phone}</p>}
+          </div>
+          {client.name2 && (
+            <div>
+              <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#C4B5A0',marginBottom:'0.4rem'}}>Secondary</div>
+              {client.email2 && <p style={{fontSize:'0.78rem',color:'#4A4540',marginBottom:'0.2rem'}}>{client.email2}</p>}
+              {client.phone2 && <p style={{fontSize:'0.78rem',color:'#4A4540'}}>{client.phone2}</p>}
+            </div>
+          )}
+          {client.street && (
+            <div>
+              <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#C4B5A0',marginBottom:'0.4rem'}}>Address</div>
+              <p style={{fontSize:'0.78rem',color:'#4A4540',lineHeight:1.5}}>{client.street}<br/>{client.city}{client.city && client.state ? ', ' : ''}{client.state} {client.zip}</p>
+            </div>
+          )}
+          <div>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#C4B5A0',marginBottom:'0.4rem'}}>Billing</div>
+            <p style={{fontSize:'0.78rem',color:'#4A4540',marginBottom:'0.2rem',textTransform:'capitalize'}}>{client.billing_type || 'Commission'}</p>
+            {client.commission_rate > 0 && <p style={{fontSize:'0.72rem',color:'#8A8278'}}>{client.commission_rate}% commission</p>}
+            {client.hourly_rate > 0 && <p style={{fontSize:'0.72rem',color:'#8A8278'}}>${client.hourly_rate}/hr</p>}
+            {client.retainer_balance > 0 && <p style={{fontSize:'0.72rem',color:'#6B7C6E',marginTop:'0.2rem'}}>Retainer: ${Number(client.retainer_balance).toLocaleString()}</p>}
+          </div>
+        </div>
+
+        {/* Financial summary */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem',marginTop:'1.25rem',paddingTop:'1.25rem',borderTop:'1px solid rgba(42,37,32,0.06)'}}>
+          {[
+            { label: 'Total Billed', value: `$${totalBilled.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` },
+            { label: 'Total Paid', value: `$${totalPaid.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#6B7C6E' },
+            { label: 'Outstanding', value: `$${outstanding.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, color: outstanding > 0 ? '#C4622D' : '#6B7C6E' },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{background:'#F7F3EE',borderRadius:6,padding:'0.75rem 1rem'}}>
+              <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.25rem'}}>{label}</div>
+              <div style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.4rem',fontWeight:400,color: color || '#2A2520'}}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {client.notes && <p style={{fontSize:'0.78rem',color:'#8A8278',marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid rgba(42,37,32,0.06)'}}>{client.notes}</p>}
+      </div>
+
+      {/* Section tabs */}
+      <div style={{display:'flex',gap:'0.25rem',marginBottom:'1.25rem',borderBottom:'1px solid rgba(42,37,32,0.08)',paddingBottom:'0'}}>
+        {sections.map(s => (
+          <button key={s} onClick={() => setActiveSection(s)} style={{
+            padding:'0.5rem 1rem',fontSize:'0.78rem',border:'none',background:'none',cursor:'pointer',
+            textTransform:'capitalize',borderBottom:`2px solid ${activeSection === s ? '#C4622D' : 'transparent'}`,
+            color: activeSection === s ? '#C4622D' : '#8A8278',fontWeight: activeSection === s ? 500 : 400,
+            marginBottom:'-1px'
+          }}>{s}</button>
+        ))}
+      </div>
+
+      {/* Projects section */}
+      {activeSection === 'projects' && (
+        <div>
+          {clientProjects.length === 0
+            ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem 0',textAlign:'center'}}>No projects yet</p>
+            : <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
+                {clientProjects.map(p => {
+                  const pct = p.budget ? Math.min(100, Math.round((p.spent / p.budget) * 100)) : 0
+                  const over = p.spent > p.budget && p.budget > 0
+                  return (
+                    <div key={p.id} onClick={() => setDetailProject(p)} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',cursor:'pointer'}}>
+                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'0.25rem'}}>
+                        <h3 style={{fontWeight:500,color:'#C4622D',fontSize:'0.9rem'}}>{p.name}</h3>
+                        <Badge status={p.status} />
+                      </div>
+                      {p.budget > 0 && (
+                        <div style={{marginTop:'0.75rem'}}>
+                          <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.72rem',color:'#8A8278',marginBottom:'0.35rem'}}>
+                            <span>Budget: <span style={{color:'#2A2520',fontWeight:500}}>${Number(p.budget).toLocaleString()}</span></span>
+                            <span style={{color: over ? '#C4622D' : '#8A8278'}}>Spent: ${Number(p.spent).toLocaleString()}</span>
+                          </div>
+                          <div style={{width:'100%',background:'#E8E0D5',borderRadius:4,height:3}}>
+                            <div style={{height:3,borderRadius:4,width:`${pct}%`,background: over ? '#C4622D' : pct > 80 ? '#B8963E' : '#6B7C6E'}} />
+                          </div>
+                        </div>
+                      )}
+                      {p.notes && <p style={{fontSize:'0.72rem',color:'#C4B5A0',marginTop:'0.5rem'}}>{p.notes}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* Invoices section */}
+      {activeSection === 'invoices' && (
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+          {clientInvoices.length === 0
+            ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No invoices yet</p>
+            : <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+                    {['Invoice #','Project','Amount','Due','Status'].map(h => (
+                      <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientInvoices.map(i => (
+                    <tr key={i.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                      <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{i.num}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{projects.find(p => p.id === i.project_id)?.name || '—'}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(i.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{i.due ? new Date(i.due+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+                      <td style={{padding:'0.75rem 1.25rem'}}><Badge status={i.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+      )}
+
+      {/* Meetings section */}
+      {activeSection === 'meetings' && (
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+          {clientEvents.length === 0
+            ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No meetings linked to this client yet</p>
+            : <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+                    {['Date','Time','Title','Type','Location'].map(h => (
+                      <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientEvents.map(e => {
+                    const isPast = e.date < new Date().toISOString().split('T')[0]
+                    return (
+                      <tr key={e.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)',opacity: isPast ? 0.6 : 1}}>
+                        <td style={{padding:'0.75rem 1.25rem',color:'#2A2520',fontWeight:500}}>{new Date(e.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
+                        <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{e.time || '—'}</td>
+                        <td style={{padding:'0.75rem 1.25rem',color:'#2A2520'}}>{e.title}</td>
+                        <td style={{padding:'0.75rem 1.25rem'}}><Badge status={e.type} /></td>
+                        <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{e.location || '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+          }
+        </div>
+      )}
+
+      {/* Tasks section */}
+      {activeSection === 'tasks' && (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
+          {clientTasks.length === 0
+            ? <div style={{gridColumn:'1/-1',textAlign:'center',padding:'2rem 0',color:'#8A8278',fontSize:'0.82rem'}}>No tasks linked to this client's projects</div>
+            : TASK_PRIORITIES.map(priority => {
+                const ptasks = clientTasks.filter(t => t.priority === priority)
+                const accentColor = priority === 'Today' ? '#C4622D' : priority === 'This Week' ? '#B8963E' : '#6B7C6E'
+                return (
+                  <div key={priority} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',borderTop:`3px solid ${accentColor}`}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+                      <h3 style={{fontFamily:"'DM Mono', monospace",fontSize:'0.65rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#2A2520'}}>{priority}</h3>
+                      <span style={{fontSize:'0.7rem',color:'#8A8278'}}>{ptasks.filter(t => !t.done).length} left</span>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                      {ptasks.length === 0 && <p style={{fontSize:'0.75rem',color:'#C4B5A0'}}>No tasks</p>}
+                      {ptasks.map(t => (
+                        <div key={t.id} style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}>
+                          <div style={{width:14,height:14,borderRadius:3,border:`1px solid ${t.done ? '#C4622D' : 'rgba(42,37,32,0.2)'}`,flexShrink:0,marginTop:2,background: t.done ? '#C4622D' : 'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            {t.done && <span style={{color:'white',fontSize:'0.6rem'}}>✓</span>}
+                          </div>
+                          <div>
+                            <span style={{fontSize:'0.82rem',color: t.done ? '#C4B5A0' : '#2A2520',textDecoration: t.done ? 'line-through' : 'none'}}>{t.title}</span>
+                            <p style={{fontSize:'0.7rem',color:'#8A8278'}}>{projects.find(p => p.id === t.project_id)?.name || ''}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+          }
+        </div>
+      )}
+
+      {modal && <ClientModal client={modal} onSave={async (form, setLoading) => {
+        setLoading(true)
+        await supabase.from('clients').update(form).eq('id', modal.id)
+        setLoading(false)
+        setModal(null)
+        reload()
+      }} onClose={() => setModal(null)} />}
+    </div>
+  )
+}
+
+function ProjectDetail({ project, clients, projects, vendors, items, tasks, invoices, events, timeLogs, reload, onBack }) {
+  const [activeSection, setActiveSection] = useState('items')
+  const [modal, setModal] = useState(null)
+
+  const client = clients.find(c => c.id === project.client_id)
+  const projectItems = items.filter(i => i.project_id === project.id)
+  const projectTasks = tasks.filter(t => t.project_id === project.id)
+  const projectInvoices = invoices.filter(i => i.project_id === project.id)
+  const projectTimeLogs = timeLogs.filter(t => t.project_id === project.id)
+  const pct = project.budget ? Math.min(100, Math.round((project.spent / project.budget) * 100)) : 0
+  const over = project.spent > project.budget && project.budget > 0
+  const totalHours = projectTimeLogs.reduce((s, t) => s + (Number(t.hours) || 0), 0)
+  const unbilledHours = projectTimeLogs.filter(t => !t.billed).reduce((s, t) => s + (Number(t.hours) || 0), 0)
+
+  const sections = ['items', 'tasks', 'time', 'invoices']
+
+  return (
+    <div>
+      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'0.4rem',background:'none',border:'none',cursor:'pointer',color:'#8A8278',fontSize:'0.78rem',marginBottom:'1.25rem',padding:0}}>
+        ← Back to Client
+      </button>
+
+      {/* Project header */}
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.5rem',marginBottom:'1.25rem'}}>
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'1rem'}}>
+          <div>
+            <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'2rem',fontWeight:300,color:'#2A2520',lineHeight:1}}>{project.name}</h2>
+            {client && <p style={{fontSize:'0.85rem',color:'#8A8278',marginTop:'0.25rem'}}>{client.name}</p>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
+            <Badge status={project.status} />
+            <button onClick={() => setModal(project)} style={{background:'none',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,padding:'0.35rem 0.75rem',fontSize:'0.75rem',color:'#4A4540',cursor:'pointer'}}>Edit</button>
+          </div>
+        </div>
+
+        {project.budget > 0 && (
+          <div style={{marginBottom:'1rem'}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.78rem',color:'#8A8278',marginBottom:'0.4rem'}}>
+              <span>Budget: <span style={{color:'#2A2520',fontWeight:500}}>${Number(project.budget).toLocaleString()}</span></span>
+              <span style={{color: over ? '#C4622D' : '#8A8278'}}>Spent: ${Number(project.spent).toLocaleString()}{over && ' ⚠️'}</span>
+            </div>
+            <div style={{width:'100%',background:'#E8E0D5',borderRadius:4,height:4}}>
+              <div style={{height:4,borderRadius:4,width:`${pct}%`,background: over ? '#C4622D' : pct > 80 ? '#B8963E' : '#6B7C6E'}} />
+            </div>
+          </div>
+        )}
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem',paddingTop:'1rem',borderTop:'1px solid rgba(42,37,32,0.06)'}}>
+          {[
+            { label: 'Total Items', value: projectItems.length },
+            { label: 'Total Hours', value: `${totalHours}h` },
+            { label: 'Unbilled Hours', value: `${unbilledHours}h`, color: unbilledHours > 0 ? '#C4622D' : '#6B7C6E' },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{background:'#F7F3EE',borderRadius:6,padding:'0.75rem 1rem'}}>
+              <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.25rem'}}>{label}</div>
+              <div style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.4rem',fontWeight:400,color: color || '#2A2520'}}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {project.notes && <p style={{fontSize:'0.78rem',color:'#8A8278',marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid rgba(42,37,32,0.06)'}}>{project.notes}</p>}
+      </div>
+
+      {/* Section tabs */}
+      <div style={{display:'flex',gap:'0.25rem',marginBottom:'1.25rem',borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+        {sections.map(s => (
+          <button key={s} onClick={() => setActiveSection(s)} style={{
+            padding:'0.5rem 1rem',fontSize:'0.78rem',border:'none',background:'none',cursor:'pointer',
+            textTransform:'capitalize',borderBottom:`2px solid ${activeSection === s ? '#C4622D' : 'transparent'}`,
+            color: activeSection === s ? '#C4622D' : '#8A8278',fontWeight: activeSection === s ? 500 : 400,
+            marginBottom:'-1px'
+          }}>{s === 'time' ? 'Time Log' : s}</button>
+        ))}
+      </div>
+
+      {/* Items section */}
+      {activeSection === 'items' && (
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+          {projectItems.length === 0
+            ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No items yet</p>
+            : <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+                    {['Item','Vendor','Cost','Status'].map(h => (
+                      <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectItems.map(i => (
+                    <tr key={i.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                      <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{i.name}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{vendors.find(v => v.id === i.vendor_id)?.name || '—'}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(i.cost).toLocaleString()}</td>
+                      <td style={{padding:'0.75rem 1.25rem'}}><Badge status={i.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+      )}
+
+      {/* Tasks section */}
+      {activeSection === 'tasks' && (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem'}}>
+          {TASK_PRIORITIES.map(priority => {
+            const ptasks = projectTasks.filter(t => t.priority === priority)
+            const accentColor = priority === 'Today' ? '#C4622D' : priority === 'This Week' ? '#B8963E' : '#6B7C6E'
+            return (
+              <div key={priority} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',borderTop:`3px solid ${accentColor}`}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+                  <h3 style={{fontFamily:"'DM Mono', monospace",fontSize:'0.65rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#2A2520'}}>{priority}</h3>
+                  <span style={{fontSize:'0.7rem',color:'#8A8278'}}>{ptasks.filter(t => !t.done).length} left</span>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                  {ptasks.length === 0 && <p style={{fontSize:'0.75rem',color:'#C4B5A0'}}>No tasks</p>}
+                  {ptasks.map(t => (
+                    <div key={t.id} style={{display:'flex',alignItems:'flex-start',gap:'0.5rem'}}>
+                      <div style={{width:14,height:14,borderRadius:3,border:`1px solid ${t.done ? '#C4622D' : 'rgba(42,37,32,0.2)'}`,flexShrink:0,marginTop:2,background: t.done ? '#C4622D' : 'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                        {t.done && <span style={{color:'white',fontSize:'0.6rem'}}>✓</span>}
+                      </div>
+                      <span style={{fontSize:'0.82rem',color: t.done ? '#C4B5A0' : '#2A2520',textDecoration: t.done ? 'line-through' : 'none'}}>{t.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Time log section */}
+      {activeSection === 'time' && (
+        <TimeLog project={project} timeLogs={projectTimeLogs} reload={reload} client={client} />
+      )}
+
+      {/* Invoices section */}
+      {activeSection === 'invoices' && (
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+          {projectInvoices.length === 0
+            ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No invoices for this project yet</p>
+            : <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+                    {['Invoice #','Amount','Due','Status'].map(h => (
+                      <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectInvoices.map(i => (
+                    <tr key={i.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)'}}>
+                      <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{i.num}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(i.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                      <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{i.due ? new Date(i.due+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+                      <td style={{padding:'0.75rem 1.25rem'}}><Badge status={i.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+      )}
+
+      {modal && <ProjectModal project={modal} clients={clients} onSave={async (form, setLoading) => {
+        setLoading(true)
+        const data = { ...form, budget: Number(form.budget) || 0, spent: Number(form.spent) || 0 }
+        await supabase.from('projects').update(data).eq('id', modal.id)
+        setLoading(false)
+        setModal(null)
+        reload()
+      }} onClose={() => setModal(null)} />}
+    </div>
+  )
+}
+
+function TimeLog({ project, timeLogs, reload, client }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], hours: '', description: '' })
+  const [loading, setLoading] = useState(false)
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
+  const totalHours = timeLogs.reduce((s, t) => s + (Number(t.hours) || 0), 0)
+  const unbilledHours = timeLogs.filter(t => !t.billed).reduce((s, t) => s + (Number(t.hours) || 0), 0)
+  const hourlyRate = Number(client?.hourly_rate || 0)
+
+  async function handleAdd() {
+    setLoading(true)
+    const user_id = (await supabase.auth.getUser()).data.user.id
+    await supabase.from('time_logs').insert({ ...form, hours: Number(form.hours), project_id: project.id, user_id })
+    setLoading(false)
+    setShowAdd(false)
+    setForm({ date: new Date().toISOString().split('T')[0], hours: '', description: '' })
+    reload()
+  }
+
+  async function toggleBilled(log) {
+    await supabase.from('time_logs').update({ billed: !log.billed }).eq('id', log.id)
+    reload()
+  }
+
+  async function deleteLog(id) {
+    await supabase.from('time_logs').delete().eq('id', id)
+    reload()
+  }
+
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+        <div style={{display:'flex',gap:'1rem'}}>
+          <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:6,padding:'0.6rem 1rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Total Hours</div>
+            <div style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.4rem',color:'#2A2520'}}>{totalHours}h</div>
+          </div>
+          <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:6,padding:'0.6rem 1rem'}}>
+            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>Unbilled</div>
+            <div style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.4rem',color: unbilledHours > 0 ? '#C4622D' : '#2A2520'}}>{unbilledHours}h{hourlyRate > 0 ? ` · $${(unbilledHours * hourlyRate).toLocaleString()}` : ''}</div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:'0.75rem'}}>
+          {unbilledHours > 0 && (
+            <button onClick={async () => {
+              const unbilledLogs = timeLogs.filter(t => !t.billed)
+              const lineItems = unbilledLogs.map(t => ({
+                description: `${t.description || 'Design Services'} (${t.hours}h @ $${hourlyRate}/hr)`,
+                amount: String((Number(t.hours) * hourlyRate).toFixed(2)),
+                taxable: false
+              }))
+              const total = unbilledLogs.reduce((s, t) => s + (Number(t.hours) * hourlyRate), 0)
+              const autoNum = `INV-${String(Date.now()).slice(-4)}`
+              const user_id = (await supabase.auth.getUser()).data.user.id
+              await supabase.from('invoices').insert({
+                num: autoNum,
+                client_id: project.client_id,
+                project_id: project.id,
+                line_items: lineItems,
+                amount: total,
+                tax_rate: 0,
+                retainer_applied: 0,
+                status: 'Pending',
+                notes: `Auto-generated from time log — ${unbilledLogs.length} session${unbilledLogs.length !== 1 ? 's' : ''}`,
+                user_id
+              })
+              await Promise.all(unbilledLogs.map(t =>
+                supabase.from('time_logs').update({ billed: true }).eq('id', t.id)
+              ))
+              reload()
+              alert(`Invoice ${autoNum} created for ${unbilledHours}h · $${total.toLocaleString()}`)
+            }} style={{background:'#6B7C6E',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>
+              Bill {unbilledHours}h → Invoice
+            </button>
+          )}
+          <button onClick={() => setShowAdd(!showAdd)} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer'}}>
+            + Log Time
+          </button>
+        </div>
+      </div>
+
+      {showAdd && (
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',marginBottom:'1rem'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr auto',gap:'0.75rem',alignItems:'flex-end'}}>
+            <Field label="Date"><input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass} style={inputStyle} /></Field>
+            <Field label="Hours"><input type="number" value={form.hours} onChange={e => set('hours', e.target.value)} placeholder="2.5" className={inputClass} style={inputStyle} /></Field>
+            <Field label="Description"><input value={form.description} onChange={e => set('description', e.target.value)} placeholder="What was worked on" className={inputClass} style={inputStyle} /></Field>
+            <button onClick={handleAdd} disabled={!form.hours || loading} style={{background:'#C4622D',color:'white',padding:'0.5rem 1rem',borderRadius:4,fontSize:'0.78rem',border:'none',cursor:'pointer',height:36,display:'flex',alignItems:'center',gap:'0.4rem'}}>
+              {loading && <Loader size={12} className="animate-spin" />} Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+        {timeLogs.length === 0
+          ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No time logged yet</p>
+          : <table style={{width:'100%',fontSize:'0.82rem',borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid rgba(42,37,32,0.08)'}}>
+                  {['Date','Hours','Description','Value','Billed',''].map(h => (
+                    <th key={h} style={{padding:'0.6rem 1.25rem',textAlign:'left',fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'#8A8278',fontWeight:400}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {timeLogs.map(t => (
+                  <tr key={t.id} style={{borderBottom:'1px solid rgba(42,37,32,0.04)',opacity: t.billed ? 0.6 : 1}}>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#2A2520'}}>{new Date(t.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
+                    <td style={{padding:'0.75rem 1.25rem',fontWeight:500,color:'#2A2520'}}>{t.hours}h</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#8A8278'}}>{t.description}</td>
+                    <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>{hourlyRate > 0 ? `$${(Number(t.hours) * hourlyRate).toLocaleString()}` : '—'}</td>
+                    <td style={{padding:'0.75rem 1.25rem'}}>
+                      <button onClick={() => toggleBilled(t)} style={{fontSize:'0.72rem',padding:'0.15rem 0.5rem',borderRadius:4,border:'none',cursor:'pointer',background: t.billed ? '#EBF0EC' : '#F5EDD8',color: t.billed ? '#6B7C6E' : '#B8963E'}}>
+                        {t.billed ? 'Billed' : 'Unbilled'}
+                      </button>
+                    </td>
+                    <td style={{padding:'0.75rem 1.25rem'}}>
+                      <button onClick={() => deleteLog(t.id)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Trash2 size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+        }
+      </div>
+    </div>
+  )
+}
 
 
