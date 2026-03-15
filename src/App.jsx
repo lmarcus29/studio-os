@@ -540,29 +540,60 @@ function TaskModal({ task, projects, onSave, onClose }) {
   )
 }
 
-function EventModal({ event, onSave, onClose }) {
-  const [form, setForm] = useState(event || { title: '', date: '', type: 'Meeting', notes: '' })
+function EventModal({ event, onSave, onClose, clients }) {
+  const [form, setForm] = useState(event || { title: '', date: '', time: '', duration: '', type: 'Meeting', location: '', notes: '', client_id: '' })
   const [loading, setLoading] = useState(false)
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }))
   const valid = form.title.trim() && form.date
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold text-slate-800">{event ? 'Edit Event' : 'Add Event'}</h3>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+    <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem'}}>
+      <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:440,maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.25rem'}}>
+          <h3 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.3rem',fontWeight:400,color:'#2A2520'}}>{event ? 'Edit Event' : 'Add Event'}</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#8A8278'}}><X size={18} /></button>
         </div>
-        <div className="flex flex-col gap-4">
-          <Field label="Title *"><input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Event title" className={inputClass} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Date *"><input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass} /></Field>
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          <Field label="Title *">
+            <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Event title" className={inputClass} style={inputStyle} />
+          </Field>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Date *">
+              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass} style={inputStyle} />
+            </Field>
             <Field label="Type">
-              <select value={form.type} onChange={e => set('type', e.target.value)} className={inputClass}>
+              <select value={form.type} onChange={e => set('type', e.target.value)} className={inputClass} style={inputStyle}>
                 {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
           </div>
-          <Field label="Notes"><textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Location, details…" className={inputClass} /></Field>
+          <Field label="Client">
+            <select value={form.client_id} onChange={e => set('client_id', e.target.value)} className={inputClass} style={inputStyle}>
+              <option value="">General / Non-client</option>
+              {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}}>
+            <Field label="Time">
+              <input type="time" value={form.time || ''} onChange={e => set('time', e.target.value)} className={inputClass} style={inputStyle} />
+            </Field>
+            <Field label="Duration">
+              <select value={form.duration || ''} onChange={e => set('duration', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">—</option>
+                <option value="30">30 min</option>
+                <option value="60">1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+                <option value="180">3 hours</option>
+                <option value="240">4 hours</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Location">
+            <input value={form.location || ''} onChange={e => set('location', e.target.value)} placeholder="Address, showroom, or video call link" className={inputClass} style={inputStyle} />
+          </Field>
+          <Field label="Notes">
+            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Agenda, prep needed…" className={inputClass} style={inputStyle} />
+          </Field>
         </div>
         <ModalFooter onClose={onClose} onSave={() => onSave(form, setLoading)} valid={valid} loading={loading} label={event ? 'Save Changes' : 'Add Event'} />
       </div>
@@ -1085,7 +1116,7 @@ async function handleDelete() {
     const project = projects.find(p => p.id === invoice.project_id)
 
     // Header
-    doc.setFillColor(27, 107, 107)
+    doc.setFillColor(42, 37, 32)
     doc.rect(0, 0, 210, 40, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(24)
@@ -1147,7 +1178,7 @@ async function handleDelete() {
     doc.text(`$${Number(invoice.amount).toLocaleString()}`, 165, 120, { align: 'right' })
 
     // Total box
-    doc.setFillColor(27, 107, 107)
+    doc.setFillColor(42, 37, 32)
     doc.rect(120, 135, 70, 14, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(12)
@@ -1469,7 +1500,7 @@ function Files({ projects, clients }) {
     </div>
   )
 }
-function CalendarView({ events, reload }) {
+function CalendarView({ events, reload, clients }) {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1))
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -1506,8 +1537,11 @@ if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
   }
 
   const typeColors = {
-    Meeting: 'bg-amber-100 text-amber-700', Delivery: 'bg-teal-100 text-teal-700',
-    'Site Visit': 'bg-blue-100 text-blue-700', Billing: 'bg-rose-100 text-rose-700', Other: 'bg-slate-100 text-slate-600'
+    Meeting: {background:'#F5EDD8',color:'#B8963E'},
+    Delivery: {background:'#EBF0EC',color:'#6B7C6E'},
+    'Site Visit': {background:'#E8E0D5',color:'#4A4540'},
+    Billing: {background:'#F5E8E5',color:'#C47A6B'},
+    Other: {background:'#E8E0D5',color:'#8A8278'},
   }
 
   return (
@@ -1548,7 +1582,7 @@ if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
           })}
         </div>
       </div>
-      {modal && <EventModal event={modal === 'add' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
+      {modal && <EventModal event={modal === 'add' ? null : modal} onSave={handleSave} onClose={() => setModal(null)} clients={clients} />}
       {deleteTarget && <ConfirmDeleteModal name={deleteTarget.title} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleteLoading} />}
     </div>
   )
