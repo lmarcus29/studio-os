@@ -322,7 +322,7 @@ export default function App() {
           <div style={{padding:'1.5rem 2rem',flex:1}}>
             {dataLoading ? <LoadingSpinner /> : <>
               {detailType === 'client' && detailClient && <ClientDetail client={detailClient} {...shared} onBack={() => { setDetailClient(null); setDetailType(null) }} setDetailProject={(p) => { setDetailProject(p); setDetailType('project') }} />}
-              {detailType === 'project' && detailProject && <ProjectDetail project={detailProject} {...shared} onBack={() => { setDetailProject(null); setDetailType('client') }} />}
+              {detailType === 'project' && detailProject && <ProjectDetail project={detailProject} {...shared} onBack={() => { setDetailProject(null); setDetailType(detailClient ? 'client' : null) }} backLabel={detailClient ? 'Back to Client' : 'Back to Projects'} />}
               {!detailType && <>
                 {activeTab === 'dashboard' && <Dashboard {...shared} />}
                 {activeTab === 'clients' && <Clients {...shared} setDetailClient={(c) => { setDetailClient(c); setDetailType('client') }} />}
@@ -1061,7 +1061,7 @@ async function handleSave(form, setLoading) {
   )
 }
 
-function Projects({ projects, clients, reload }) {
+function Projects({ projects, clients, reload, setDetailProject }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [modal, setModal] = useState(null)
@@ -1115,7 +1115,7 @@ if (modal === 'add') await supabase.from('projects').insert({ ...data, user_id }
           return (
             <div key={p.id} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem'}}>
               <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'0.25rem'}}>
-                <h3 style={{fontWeight:500,color:'#2A2520',fontSize:'0.9rem',paddingRight:'0.5rem'}}>{p.name}</h3>
+                <h3 onClick={() => setDetailProject(p)} style={{fontWeight:500,color:'#C4622D',fontSize:'0.9rem',paddingRight:'0.5rem',cursor:'pointer'}}>{p.name}</h3>
                 <Badge status={p.status} />
               </div>
               <p style={{fontSize:'0.78rem',color:'#8A8278',marginBottom:'1rem'}}>{clients.find(c => c.id === p.client_id)?.name || '—'}</p>
@@ -2257,7 +2257,7 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
   )
 }
 
-function ProjectDetail({ project, clients, projects, vendors, items, tasks, invoices, events, timeLogs, fileMetadata, reload, onBack }) {
+function ProjectDetail({ project, clients, projects, vendors, items, tasks, invoices, events, timeLogs, fileMetadata, reload, onBack, backLabel }) {
   const [activeSection, setActiveSection] = useState('items')
   const [modal, setModal] = useState(null)
 
@@ -2275,7 +2275,7 @@ function ProjectDetail({ project, clients, projects, vendors, items, tasks, invo
   return (
     <div>
       <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'0.4rem',background:'none',border:'none',cursor:'pointer',color:'#8A8278',fontSize:'0.78rem',marginBottom:'1.25rem',padding:0}}>
-        ← Back to Client
+        ← {backLabel || 'Back to Client'}
       </button>
 
       {/* Project header */}
