@@ -2013,7 +2013,7 @@ if (modal === 'add') await supabase.from('events').insert({ ...form, user_id })
     </div>
   )
 }
-function ClientDetail({ client, projects, invoices, tasks, events, payments, clients, reload, onBack, setDetailProject }) {
+function ClientDetail({ client, projects, invoices, tasks, events, payments, clients, fileMetadata, reload, onBack, setDetailProject }) {
   const [activeSection, setActiveSection] = useState('projects')
   const [modal, setModal] = useState(null)
 
@@ -2025,7 +2025,7 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
   const totalPaid = clientInvoices.filter(i => i.status === 'Paid').reduce((s, i) => s + (Number(i.amount) || 0), 0)
   const outstanding = totalBilled - totalPaid
 
-  const sections = ['projects', 'invoices', 'meetings', 'tasks']
+  const sections = ['projects', 'invoices', 'meetings', 'tasks', 'files']
 
   return (
     <div>
@@ -2236,6 +2236,16 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
         </div>
       )}
 
+      {/* Files section */}
+      {activeSection === 'files' && (
+        <ClientFilePanel
+          client={client}
+          projects={projects}
+          fileMetadata={fileMetadata}
+          reload={reload}
+        />
+      )}
+
       {modal && <ClientModal client={modal} onSave={async (form, setLoading) => {
         setLoading(true)
         await supabase.from('clients').update(form).eq('id', modal.id)
@@ -2247,7 +2257,7 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
   )
 }
 
-function ProjectDetail({ project, clients, projects, vendors, items, tasks, invoices, events, timeLogs, reload, onBack }) {
+function ProjectDetail({ project, clients, projects, vendors, items, tasks, invoices, events, timeLogs, fileMetadata, reload, onBack }) {
   const [activeSection, setActiveSection] = useState('items')
   const [modal, setModal] = useState(null)
 
@@ -2260,8 +2270,7 @@ function ProjectDetail({ project, clients, projects, vendors, items, tasks, invo
   const over = project.spent > project.budget && project.budget > 0
   const totalHours = projectTimeLogs.reduce((s, t) => s + (Number(t.hours) || 0), 0)
   const unbilledHours = projectTimeLogs.filter(t => !t.billed).reduce((s, t) => s + (Number(t.hours) || 0), 0)
-
-  const sections = ['items', 'tasks', 'time', 'invoices']
+  const sections = ['items', 'tasks', 'time', 'invoices', 'files']
 
   return (
     <div>
@@ -2410,6 +2419,17 @@ function ProjectDetail({ project, clients, projects, vendors, items, tasks, invo
               </table>
           }
         </div>
+      )}
+
+      {/* Files section */}
+      {activeSection === 'files' && (
+        <ClientFilePanel
+          client={null}
+          project={project}
+          projects={projects}
+          fileMetadata={fileMetadata}
+          reload={reload}
+        />
       )}
 
       {modal && <ProjectModal project={modal} clients={clients} onSave={async (form, setLoading) => {
@@ -2598,3 +2618,156 @@ function PaymentForm({ invoiceId, invoiceAmount, totalPaid, onSave }) {
   )
 }
 
+function ClientFilePanel({ client, project, projects, fileMetadata, reload }) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadTags, setUploadTags] = useState({
+    room_type: '', style_tag: '', file_type: '', url: '',
+    client_id: client?.id || '',
+    project_id: project?.id || ''
+  })
+  const [showUpload, setShowUpload] = useState(false)
+  const setTag = (f, v) => setUploadTags(p => ({ ...p, [f]: v }))
+
+  // Filter files relevant to this client or project
+  const relevantFiles = fileMetadata.filter(f => {
+    if (project) return f.project_id === project.id
+    if (client) return f.client_id === client.id || projects.filter(p => p.client_id === client.id).some(p => p.id === f.project_id)
+    return false
+  })
+
+  const [signedFiles, setSignedFiles] = useState([])
+
+  useEffect(() => {
+    async function loadSigned() {
+      const enriched = await Promise.all(relevantFiles.map(async f => {
+        const { data } = await supabase.storage
+          .from('studio-files')
+          .createSignedUrl(f.storage_path, 3600)
+        return { ...f, signedUrl: data?.signedUrl }
+      }))
+      setSignedFiles(enriched)
+    }
+    loadSigned()
+  }, [fileMetadata])
+
+  function isImage(path) {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(path)
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const ext = file.name.split('.').pop()
+    const fileName = `${Date.now()}.${ext}`
+    const path = `${user.id}/${fileName}`
+    const { error } = await supabase.storage.from('studio-files').upload(path, file)
+    if (!error) {
+      await supabase.from('file_metadata').insert({
+        user_id: user.id,
+        storage_path: path,
+        display_name: file.name,
+        project_id: uploadTags.project_id || null,
+        client_id: uploadTags.client_id || null,
+        room_type: uploadTags.room_type || null,
+        style_tag: uploadTags.style_tag || null,
+        file_type: uploadTags.file_type || null,
+        url: uploadTags.url || null,
+      })
+      setShowUpload(false)
+      reload()
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  async function handleDelete(f) {
+    await supabase.storage.from('studio-files').remove([f.storage_path])
+    await supabase.from('file_metadata').delete().eq('id', f.id)
+    reload()
+  }
+
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
+        <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>
+          {signedFiles.length} file{signedFiles.length !== 1 ? 's' : ''}
+        </div>
+        <button onClick={() => setShowUpload(!showUpload)} style={{background:'#C4622D',color:'white',padding:'0.4rem 0.9rem',borderRadius:4,fontSize:'0.75rem',fontWeight:500,border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+          <Upload size={13} /> Upload File
+        </button>
+      </div>
+
+      {showUpload && (
+        <div style={{background:'#F7F3EE',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1rem',marginBottom:'1rem'}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem',marginBottom:'0.75rem'}}>
+            {!project && (
+              <Field label="Project">
+                <select value={uploadTags.project_id} onChange={e => setTag('project_id', e.target.value)} className={inputClass} style={inputStyle}>
+                  <option value="">— None —</option>
+                  {projects.filter(p => p.client_id === client?.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </Field>
+            )}
+            <Field label="File Type">
+              <select value={uploadTags.file_type} onChange={e => setTag('file_type', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            <Field label="Room Type">
+              <select value={uploadTags.room_type} onChange={e => setTag('room_type', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {ROOM_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            <Field label="Style Tag">
+              <select value={uploadTags.style_tag} onChange={e => setTag('style_tag', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {STYLE_TAGS.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label="Product URL (optional)">
+            <input value={uploadTags.url} onChange={e => setTag('url', e.target.value)} placeholder="https://www.vendor.com/product" className={inputClass} style={{...inputStyle,marginBottom:'0.75rem'}} />
+          </Field>
+          <label style={{display:'inline-flex',alignItems:'center',gap:'0.5rem',background: uploading ? '#C4B5A0' : '#C4622D',color:'white',padding:'0.4rem 0.9rem',borderRadius:4,fontSize:'0.75rem',fontWeight:500,cursor: uploading ? 'not-allowed' : 'pointer'}}>
+            {uploading ? <Loader size={13} className="animate-spin" /> : <Upload size={13} />}
+            {uploading ? 'Uploading…' : 'Choose & Upload'}
+            <input type="file" style={{display:'none'}} onChange={handleUpload} disabled={uploading} />
+          </label>
+        </div>
+      )}
+
+      {signedFiles.length === 0
+        ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No files yet</p>
+        : <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem'}}>
+            {signedFiles.map(f => (
+              <div key={f.id} style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+                <div style={{height:120,background:'#E8E0D5',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                  {isImage(f.storage_path) && f.signedUrl
+                    ? <img src={f.signedUrl} alt={f.display_name} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                    : <FileImage size={32} style={{color:'#C4B5A0'}} />
+                  }
+                </div>
+                <div style={{padding:'0.6rem'}}>
+                  <p style={{fontSize:'0.78rem',fontWeight:500,color:'#2A2520',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.display_name}</p>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'0.25rem',marginTop:'0.3rem'}}>
+                    {f.file_type && <span style={{background:'#F5EDD8',color:'#B8963E',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{f.file_type}</span>}
+                    {f.room_type && <span style={{background:'#EBF0EC',color:'#6B7C6E',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{f.room_type}</span>}
+                    {f.style_tag && <span style={{background:'#E8E0D5',color:'#8A8278',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{f.style_tag}</span>}
+                  </div>
+                  <div style={{display:'flex',gap:'0.4rem',marginTop:'0.4rem',alignItems:'center'}}>
+                    {f.signedUrl && <a href={f.signedUrl} target="_blank" rel="noopener noreferrer" style={{fontSize:'0.7rem',color:'#C4622D',textDecoration:'none',display:'flex',alignItems:'center',gap:2}}><Download size={11} /> View</a>}
+                    {f.url && <a href={f.url} target="_blank" rel="noopener noreferrer" style={{fontSize:'0.7rem',color:'#6B7C6E',textDecoration:'none'}}>🔗 Product</a>}
+                    <button onClick={() => handleDelete(f)} style={{marginLeft:'auto',color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex'}}><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+      }
+    </div>
+  )
+}
