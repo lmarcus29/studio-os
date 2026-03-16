@@ -215,6 +215,7 @@ export default function App() {
   const [events, setEvents] = useState([])
   const [payments, setPayments] = useState([])
   const [timeLogs, setTimeLogs] = useState([])
+  const [fileMetadata, setFileMetadata] = useState([])
   const [dataLoading, setDataLoading] = useState(false)
   const [detailClient, setDetailClient] = useState(null)
   const [detailProject, setDetailProject] = useState(null)
@@ -233,7 +234,7 @@ export default function App() {
 
   const loadAll = useCallback(async () => {
     setDataLoading(true)
-    const [c, p, v, i, inv, t, e, pay, tl] = await Promise.all([
+    const [c, p, v, i, inv, t, e, pay, tl, fm] = await Promise.all([
       supabase.from('clients').select('*').order('created_at'),
       supabase.from('projects').select('*').order('created_at'),
       supabase.from('vendors').select('*').order('created_at'),
@@ -243,6 +244,7 @@ export default function App() {
       supabase.from('events').select('*').order('created_at'),
       supabase.from('payments').select('*').order('created_at'),
       supabase.from('time_logs').select('*').order('created_at'),
+      supabase.from('file_metadata').select('*').order('created_at'),
     ])
     setClients(c.data || [])
     setProjects(p.data || [])
@@ -253,6 +255,7 @@ export default function App() {
     setEvents(e.data || [])
     setPayments(pay.data || [])
     setTimeLogs(tl.data || [])
+    setFileMetadata(fm.data || [])
     setDataLoading(false)
   }, [])
 
@@ -270,7 +273,7 @@ export default function App() {
 
   if (!session) return <AuthScreen />
 
-  const shared = { clients, projects, vendors, items, invoices, tasks, events, payments, timeLogs, reload: loadAll }
+  const shared = { clients, projects, vendors, items, invoices, tasks, events, payments, timeLogs, fileMetadata, reload: loadAll }
 
   return (
 <div className="h-screen flex flex-col overflow-hidden" style={{background:'#F7F3EE',fontFamily:"'DM Sans', sans-serif"}}>
@@ -1677,35 +1680,49 @@ if (modal === 'add') await supabase.from('tasks').insert({ ...form, user_id })
   )
 }
 
-function Files({ projects, clients }) {
+const ROOM_TYPES = ['Living Room','Bedroom','Kitchen','Dining Room','Bathroom','Office','Outdoor','Other']
+const STYLE_TAGS = ['Modern','Traditional','Transitional','Coastal','Farmhouse','Industrial','Bohemian','Minimalist','Other']
+const FILE_TYPES = ['Mood Board','Photo','Document','Contract','Rendering','Fabric Sample','Other']
+
+function Files({ projects, clients, fileMetadata, reload }) {
   const [files, setFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const [search, setSearch] = useState('')
   const [projectFilter, setProjectFilter] = useState('')
+  const [clientFilter, setClientFilter] = useState('')
+  const [fileTypeFilter, setFileTypeFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [uploadTags, setUploadTags] = useState({ client_id: '', project_id: '', room_type: '', style_tag: '', file_type: '', url: '' })
+  const [showUploadPanel, setShowUploadPanel] = useState(false)
+  const setTag = (f, v) => setUploadTags(p => ({ ...p, [f]: v }))
 
   async function loadFiles() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const { data, error } = await supabase.storage
+    const { data } = await supabase.storage
       .from('studio-files')
       .list(user.id, { sortBy: { column: 'created_at', order: 'desc' } })
     if (data) {
       const enriched = await Promise.all(data.map(async f => {
-        const { data: urlData } = supabase.storage
-          .from('studio-files')
-          .getPublicUrl(`${user.id}/${f.name}`)
         const { data: signedData } = await supabase.storage
           .from('studio-files')
           .createSignedUrl(`${user.id}/${f.name}`, 3600)
-        const meta = f.metadata || {}
+        const path = `${user.id}/${f.name}`
+        const meta = fileMetadata.find(m => m.storage_path === path) || {}
         return {
           ...f,
           signedUrl: signedData?.signedUrl,
+          storagePath: path,
           projectId: meta.project_id || '',
+          clientId: meta.client_id || '',
+          roomType: meta.room_type || '',
+          styleTag: meta.style_tag || '',
+          fileType: meta.file_type || '',
+          fileUrl: meta.url || '',
           displayName: meta.display_name || f.name,
+          metaId: meta.id || null,
         }
       }))
       setFiles(enriched)
@@ -1713,7 +1730,7 @@ function Files({ projects, clients }) {
     setLoading(false)
   }
 
-  useEffect(() => { loadFiles() }, [])
+  useEffect(() => { loadFiles() }, [fileMetadata])
 
   async function handleUpload(e) {
     const file = e.target.files[0]
@@ -1725,13 +1742,23 @@ function Files({ projects, clients }) {
     const path = `${user.id}/${fileName}`
     const { error } = await supabase.storage
       .from('studio-files')
-      .upload(path, file, {
-        metadata: {
-          display_name: file.name,
-          project_id: projectFilter || '',
-        }
+      .upload(path, file)
+    if (!error) {
+      await supabase.from('file_metadata').insert({
+        user_id: user.id,
+        storage_path: path,
+        display_name: file.name,
+        project_id: uploadTags.project_id || null,
+        client_id: uploadTags.client_id || null,
+        room_type: uploadTags.room_type || null,
+        style_tag: uploadTags.style_tag || null,
+        file_type: uploadTags.file_type || null,
+        url: uploadTags.url || null,
       })
-    if (!error) await loadFiles()
+      setShowUploadPanel(false)
+      setUploadTags({ client_id: '', project_id: '', room_type: '', style_tag: '', file_type: '' })
+      reload()
+    }
     setUploading(false)
     e.target.value = ''
   }
@@ -1741,16 +1768,21 @@ function Files({ projects, clients }) {
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.storage
       .from('studio-files')
-      .remove([`${user.id}/${deleteTarget.name}`])
+      .remove([deleteTarget.storagePath])
+    if (deleteTarget.metaId) {
+      await supabase.from('file_metadata').delete().eq('id', deleteTarget.metaId)
+    }
     setDeleteLoading(false)
     setDeleteTarget(null)
-    await loadFiles()
+    reload()
   }
 
   const filtered = files.filter(f => {
     const matchSearch = f.displayName.toLowerCase().includes(search.toLowerCase())
     const matchProject = !projectFilter || f.projectId === projectFilter
-    return matchSearch && matchProject
+    const matchClient = !clientFilter || f.clientId === clientFilter
+    const matchFileType = !fileTypeFilter || f.fileType === fileTypeFilter
+    return matchSearch && matchProject && matchClient && matchFileType
   })
 
   function formatSize(bytes) {
@@ -1766,23 +1798,79 @@ function Files({ projects, clients }) {
 
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1rem'}}>
         <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Files</h2>
-        <label style={{display:'flex',alignItems:'center',gap:'0.4rem',background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,cursor: uploading ? 'not-allowed' : 'pointer',opacity: uploading ? 0.6 : 1}}>
-          {uploading ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
-          {uploading ? 'Uploading…' : 'Upload File'}
-          <input type="file" style={{display:'none'}} onChange={handleUpload} disabled={uploading} />
-        </label>
+        <button onClick={() => setShowUploadPanel(!showUploadPanel)} style={{background:'#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+          <Upload size={14} /> Upload File
+        </button>
       </div>
-      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.25rem'}}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search files…"
-          className={inputClass} style={{...inputStyle,width:256}} />
-        <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          className={inputClass} style={{...inputStyle,width:'auto'}}>
+
+      {showUploadPanel && (
+        <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',marginBottom:'1.25rem'}}>
+          <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'1rem'}}>Upload & Tag File</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'0.75rem',marginBottom:'0.75rem'}}>
+            <Field label="Client">
+              <select value={uploadTags.client_id} onChange={e => { setTag('client_id', e.target.value); setTag('project_id', '') }} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Project">
+              <select value={uploadTags.project_id} onChange={e => setTag('project_id', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {projects.filter(p => !uploadTags.client_id || p.client_id === uploadTags.client_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+            <Field label="File Type">
+              <select value={uploadTags.file_type} onChange={e => setTag('file_type', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'0.75rem',marginBottom:'1rem'}}>
+            <Field label="Room Type">
+              <select value={uploadTags.room_type} onChange={e => setTag('room_type', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {ROOM_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            <Field label="Style Tag">
+              <select value={uploadTags.style_tag} onChange={e => setTag('style_tag', e.target.value)} className={inputClass} style={inputStyle}>
+                <option value="">— None —</option>
+                {STYLE_TAGS.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div style={{marginBottom:'0.75rem'}}>
+            <Field label="Product URL (optional)">
+              <input value={uploadTags.url} onChange={e => setTag('url', e.target.value)} placeholder="https://www.vendor.com/product" className={inputClass} style={inputStyle} />
+            </Field>
+          </div>
+          <label style={{display:'inline-flex',alignItems:'center',gap:'0.5rem',background: uploading ? '#C4B5A0' : '#C4622D',color:'white',padding:'0.5rem 1.1rem',borderRadius:4,fontSize:'0.78rem',fontWeight:500,cursor: uploading ? 'not-allowed' : 'pointer'}}>
+            {uploading ? <Loader size={14} className="animate-spin" /> : <Upload size={14} />}
+            {uploading ? 'Uploading…' : 'Choose & Upload File'}
+            <input type="file" style={{display:'none'}} onChange={handleUpload} disabled={uploading} />
+          </label>
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:'0.75rem',marginBottom:'1.25rem',flexWrap:'wrap'}}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search files…" className={inputClass} style={{...inputStyle,width:200}} />
+        <select value={clientFilter} onChange={e => { setClientFilter(e.target.value); setProjectFilter('') }} className={inputClass} style={{...inputStyle,width:'auto'}}>
+          <option value="">All Clients</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className={inputClass} style={{...inputStyle,width:'auto'}}>
           <option value="">All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {projects.filter(p => !clientFilter || p.client_id === clientFilter).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select value={fileTypeFilter} onChange={e => setFileTypeFilter(e.target.value)} className={inputClass} style={{...inputStyle,width:'auto'}}>
+          <option value="">All Types</option>
+          {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
         </select>
       </div>
+
       {loading ? <LoadingSpinner /> : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem'}}>
           {filtered.length === 0 && (
@@ -1801,20 +1889,24 @@ function Files({ projects, clients }) {
               <div style={{padding:'0.75rem'}}>
                 <p style={{fontSize:'0.82rem',fontWeight:500,color:'#2A2520',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.displayName}</p>
                 <p style={{fontSize:'0.72rem',color:'#C4B5A0',marginTop:2}}>{formatSize(f.metadata?.size)}</p>
-                {f.projectId && (
-                  <p style={{fontSize:'0.72rem',color:'#6B7C6E',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                    {projects.find(p => p.id === f.projectId)?.name || ''}
-                  </p>
-                )}
+                <div style={{display:'flex',flexWrap:'wrap',gap:'0.25rem',marginTop:'0.4rem'}}>
+                  {f.fileType && <span style={{background:'#F5EDD8',color:'#B8963E',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{f.fileType}</span>}
+                  {f.roomType && <span style={{background:'#EBF0EC',color:'#6B7C6E',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{f.roomType}</span>}
+                  {f.styleTag && <span style={{background:'#E8E0D5',color:'#8A8278',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{f.styleTag}</span>}
+                  {f.projectId && <span style={{background:'#F5E6DE',color:'#C4622D',fontSize:'0.6rem',fontFamily:"'DM Mono',monospace",padding:'0.1rem 0.4rem',borderRadius:8}}>{projects.find(p => p.id === f.projectId)?.name || ''}</span>}
+                </div>
                 <div style={{display:'flex',gap:'0.5rem',marginTop:'0.5rem',alignItems:'center'}}>
                   {f.signedUrl && (
-                    <a href={f.signedUrl} target="_blank" rel="noopener noreferrer"
-                      style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#C4622D',textDecoration:'none'}}>
+                    <a href={f.signedUrl} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#C4622D',textDecoration:'none'}}>
                       <Download size={12} /> View
                     </a>
                   )}
-                  <button onClick={() => setDeleteTarget(f)}
-                    style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',marginLeft:'auto'}}>
+                  {f.fileUrl && (
+                    <a href={f.fileUrl} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#6B7C6E',textDecoration:'none'}}>
+                      🔗 Product
+                    </a>
+                  )}
+                  <button onClick={() => setDeleteTarget(f)} style={{display:'flex',alignItems:'center',gap:3,fontSize:'0.72rem',color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',marginLeft:'auto'}}>
                     <Trash2 size={12} /> Delete
                   </button>
                 </div>
