@@ -1365,79 +1365,183 @@ async function handleDelete() {
     }
   }
 
-  function generatePDF(invoice) {
+function generatePDF(invoice) {
     const doc = new jsPDF()
     const client = clients.find(c => c.id === invoice.client_id)
     const project = projects.find(p => p.id === invoice.project_id)
 
-    // Header
-    doc.setFillColor(42, 37, 32)
-    doc.rect(0, 0, 210, 40, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(24)
-    doc.setFont('helvetica', 'bold')
-    doc.text('INVOICE', 20, 22)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Studio OS`, 20, 32)
-
-    // Invoice number + date
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(11)
-    doc.text(`Invoice #: ${invoice.num}`, 140, 22)
-    doc.text(`Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 140, 32)
-
-    // Client info
-    doc.setTextColor(50, 50, 50)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Bill To:', 20, 58)
-    doc.setFont('helvetica', 'normal')
-    doc.text(client?.name || '—', 20, 66)
-    if (client?.email) doc.text(client.email, 20, 74)
-    if (client?.phone) doc.text(client.phone, 20, 82)
-
-    // Project
-    if (project) {
-      doc.setFont('helvetica', 'bold')
-      doc.text('Project:', 120, 58)
-      doc.setFont('helvetica', 'normal')
-      doc.text(project.name, 120, 66)
+    // ── STUDIO BRAND (swap per client) ──────────────────────
+    const brand = {
+      name: 'Harlow & Stone Interiors',
+      tagline: 'Bespoke Interior Design',
+      website: 'www.harlowandstone.com',
+      email: 'studio@harlowandstone.com',
+      phone: '(212) 555-0182',
+      address: '142 West 57th Street, Suite 9 · New York, NY 10019',
+      thankYou: 'Thank you for the privilege of designing your space.',
     }
 
-    // Due date
-    if (invoice.due) {
-      doc.setFont('helvetica', 'bold')
-      doc.text('Due Date:', 120, 78)
-      doc.setFont('helvetica', 'normal')
-      doc.text(new Date(invoice.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), 120, 86)
-    }
+    // ── COLORS ───────────────────────────────────────────────
+    const ink = [42, 37, 32]
+    const sand = [247, 243, 238]
+    const terra = [184, 150, 62]
+    const bark = [196, 181, 160]
+    const muted = [138, 130, 120]
+    const warm = [253, 250, 246]
 
-    // Divider
-    doc.setDrawColor(200, 200, 200)
-    doc.line(20, 95, 190, 95)
+    const pageW = 210
+    const pageH = 297
+    const margin = 18
 
-    // Table header
-    doc.setFillColor(245, 245, 245)
-    doc.rect(20, 100, 170, 10, 'F')
-    doc.setTextColor(80, 80, 80)
+    // ── BACKGROUND ───────────────────────────────────────────
+    doc.setFillColor(...sand)
+    doc.rect(0, 0, pageW, pageH, 'F')
+
+    // ── LEFT ACCENT BAR ──────────────────────────────────────
+    doc.setFillColor(...terra)
+    doc.rect(0, 0, 4, pageH, 'F')
+
+    // ── HEADER AREA ──────────────────────────────────────────
+    doc.setFillColor(...warm)
+    doc.rect(4, 0, pageW - 4, 52, 'F')
+
+    // Studio name
+    doc.setTextColor(...ink)
+    doc.setFontSize(22)
+    doc.setFont('helvetica', 'bold')
+    doc.text(brand.name.toUpperCase(), margin + 4, 20)
+
+    // Tagline
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...muted)
+    doc.text(brand.tagline, margin + 4, 27)
+
+    // Contact info in header right
+    doc.setFontSize(7.5)
+    doc.setTextColor(...muted)
+    doc.text(brand.email, pageW - margin, 14, { align: 'right' })
+    doc.text(brand.phone, pageW - margin, 20, { align: 'right' })
+    doc.text(brand.website, pageW - margin, 26, { align: 'right' })
+
+    // Header divider
+    doc.setDrawColor(...bark)
+    doc.setLineWidth(0.3)
+    doc.line(margin, 34, pageW - margin, 34)
+
+    // INVOICE label + number
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...terra)
+    doc.text('INVOICE', margin + 4, 43)
+    doc.setTextColor(...ink)
+    doc.setFont('helvetica', 'normal')
+    doc.text(invoice.num, margin + 28, 43)
+
+    // Date right side
+    doc.setTextColor(...muted)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Issued: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, pageW - margin, 43, { align: 'right' })
+
+    // ── BILL TO + PROJECT INFO ────────────────────────────────
+    let y = 62
+
+    // Bill To block
+    doc.setFillColor(...warm)
+    doc.roundedRect(margin, y, 85, 38, 2, 2, 'F')
+
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...terra)
+    doc.text('BILL TO', margin + 5, y + 8)
+
+    doc.setTextColor(...ink)
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.text('Description', 25, 107)
-    doc.text('Amount', 165, 107, { align: 'right' })
+    doc.text(client?.name || '—', margin + 5, y + 16)
 
-    // Line items
+    if (client?.name2) {
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...muted)
+      doc.text(client.name2, margin + 5, y + 22)
+    }
+
+    doc.setFontSize(8.5)
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(50, 50, 50)
-    const lineItems = invoice.line_items?.length ? invoice.line_items : [{ description: project?.name || 'Services Rendered', amount: invoice.amount }]
-    let yPos = 120
-    lineItems.forEach(line => {
-      doc.text(String(line.description || ''), 25, yPos)
-      doc.text(`$${Number(line.amount || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos, { align: 'right' })
-      yPos += 10
+    doc.setTextColor(...muted)
+    let clientY = client?.name2 ? y + 28 : y + 22
+    if (client?.email) { doc.text(client.email, margin + 5, clientY); clientY += 5 }
+    if (client?.phone) { doc.text(client.phone, margin + 5, clientY) }
+
+    // Project + Due Date block
+    doc.setFillColor(...warm)
+    doc.roundedRect(margin + 90, y, 102, 38, 2, 2, 'F')
+
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...terra)
+    doc.text('PROJECT', margin + 95, y + 8)
+
+    doc.setTextColor(...ink)
+    doc.setFontSize(9.5)
+    doc.setFont('helvetica', 'bold')
+    doc.text(project?.name || '—', margin + 95, y + 16)
+
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...terra)
+    doc.text('DUE DATE', margin + 95, y + 26)
+
+    doc.setTextColor(...ink)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    const dueStr = invoice.due
+      ? new Date(invoice.due + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'Upon Receipt'
+    doc.text(dueStr, margin + 95, y + 33)
+
+    // ── LINE ITEMS TABLE ──────────────────────────────────────
+    y += 48
+
+    // Table header
+    doc.setFillColor(...ink)
+    doc.rect(margin, y, pageW - margin * 2, 9, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(7.5)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DESCRIPTION', margin + 4, y + 6)
+    doc.text('AMOUNT', pageW - margin - 4, y + 6, { align: 'right' })
+    doc.text('TAXABLE', pageW - margin - 32, y + 6, { align: 'right' })
+
+    y += 9
+
+    const lineItems = invoice.line_items?.length
+      ? invoice.line_items
+      : [{ description: project?.name || 'Services Rendered', amount: invoice.amount, taxable: true }]
+
+    lineItems.forEach((line, idx) => {
+      const rowBg = idx % 2 === 0 ? warm : sand
+      doc.setFillColor(...rowBg)
+      doc.rect(margin, y, pageW - margin * 2, 9, 'F')
+      doc.setTextColor(...ink)
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'normal')
+      doc.text(String(line.description || ''), margin + 4, y + 6)
+      doc.text(`$${Number(line.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - margin - 4, y + 6, { align: 'right' })
+      doc.setTextColor(...muted)
+      doc.setFontSize(7)
+      doc.text(line.taxable === false ? 'No' : 'Yes', pageW - margin - 32, y + 6, { align: 'right' })
+      y += 9
     })
 
-    // Subtotal / tax / retainer
+    // Table bottom border
+    doc.setDrawColor(...bark)
+    doc.setLineWidth(0.3)
+    doc.line(margin, y, pageW - margin, y)
+    y += 6
+
+    // ── TOTALS ────────────────────────────────────────────────
     const subtotal = lineItems.reduce((s, l) => s + (Number(l.amount) || 0), 0)
     const taxRate = Number(invoice.tax_rate) || 0
     const taxableSubtotal = lineItems.reduce((s, l) => l.taxable === false ? s : s + (Number(l.amount) || 0), 0)
@@ -1445,57 +1549,70 @@ async function handleDelete() {
     const retainerApplied = Number(invoice.retainer_applied) || 0
     const total = subtotal + taxAmount - retainerApplied
 
-    if (taxRate > 0) {
-      doc.setTextColor(120, 120, 120)
-      doc.setFontSize(9)
-      doc.text(`Subtotal`, 25, yPos + 4)
-      doc.text(`$${subtotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos + 4, { align: 'right' })
-      doc.text(`Tax (${taxRate}%)`, 25, yPos + 11)
-      doc.text(`$${taxAmount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos + 11, { align: 'right' })
-      yPos += 14
-    }
-    if (retainerApplied > 0) {
-      doc.setTextColor(107, 124, 110)
-      doc.setFontSize(9)
-      doc.text(`Retainer Applied`, 25, yPos + 4)
-      doc.text(`-$${retainerApplied.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 165, yPos + 4, { align: 'right' })
-      yPos += 10
+    const totalsX = pageW - margin - 70
+
+    function totalsRow(label, value, bold = false, color = ink) {
+      doc.setFontSize(bold ? 9.5 : 8.5)
+      doc.setFont('helvetica', bold ? 'bold' : 'normal')
+      doc.setTextColor(...muted)
+      doc.text(label, totalsX, y)
+      doc.setTextColor(...color)
+      doc.text(value, pageW - margin, y, { align: 'right' })
+      y += bold ? 7 : 6
     }
 
-    // Total box
-    const totalBoxY = yPos + 8
-    doc.setFillColor(42, 37, 32)
-    doc.rect(120, totalBoxY, 70, 14, 'F')
+    totalsRow('Subtotal', `$${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+    if (taxRate > 0) totalsRow(`Tax (${taxRate}%)`, `$${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+    if (retainerApplied > 0) totalsRow('Retainer Applied', `-$${retainerApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, false, [107, 124, 110])
+
+    // Total row with background
+    y += 2
+    doc.setFillColor(...ink)
+    doc.roundedRect(totalsX - 4, y - 5, pageW - margin - totalsX + 4 + margin, 12, 2, 2, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Total:', 125, totalBoxY + 9)
-    doc.text(`$${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, 185, totalBoxY + 9, { align: 'right' })
-
-    // Status
-    doc.setTextColor(80, 80, 80)
     doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Status: ${invoice.status}`, 20, totalBoxY + 9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('TOTAL DUE', totalsX, y + 3)
+    doc.text(`$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageW - margin, y + 3, { align: 'right' })
+    y += 16
 
-    // Notes
+    // Status pill
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    const statusColor = invoice.status === 'Paid' ? [107, 124, 110] : invoice.status === 'Overdue' ? terra : muted
+    doc.setTextColor(...statusColor)
+    doc.text(`STATUS: ${invoice.status.toUpperCase()}`, margin, y)
+    y += 10
+
+    // ── NOTES ─────────────────────────────────────────────────
     if (invoice.notes) {
-      const notesY = totalBoxY + 22
-      doc.setDrawColor(200, 200, 200)
-      doc.line(20, notesY, 190, notesY)
+      doc.setDrawColor(...bark)
+      doc.setLineWidth(0.3)
+      doc.line(margin, y, pageW - margin, y)
+      y += 6
+      doc.setFontSize(7.5)
       doc.setFont('helvetica', 'bold')
-      doc.text('Notes:', 20, notesY + 8)
+      doc.setTextColor(...terra)
+      doc.text('NOTES', margin, y)
+      y += 5
       doc.setFont('helvetica', 'normal')
-      doc.text(invoice.notes, 20, notesY + 16, { maxWidth: 170 })
+      doc.setTextColor(...ink)
+      doc.text(invoice.notes, margin, y, { maxWidth: pageW - margin * 2 })
     }
 
-    // Footer
-    doc.setFillColor(245, 245, 245)
-    doc.rect(0, 272, 210, 25, 'F')
-    doc.setTextColor(120, 120, 120)
-    doc.setFontSize(9)
-    doc.text('Thank you for your business.', 105, 282, { align: 'center' })
-    doc.text('Studio OS — Interior Design Management', 105, 289, { align: 'center' })
+    // ── FOOTER ────────────────────────────────────────────────
+    doc.setFillColor(...ink)
+    doc.rect(0, pageH - 22, pageW, 22, 'F')
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(...bark)
+    doc.text(brand.thankYou, pageW / 2, pageH - 13, { align: 'center' })
+
+    doc.setFontSize(7.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...muted)
+    doc.text(`${brand.website} · ${brand.email}`, pageW / 2, pageH - 7, { align: 'center' })
 
     doc.save(`invoice-${invoice.num}.pdf`)
   }
