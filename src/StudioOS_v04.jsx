@@ -674,6 +674,7 @@ function InvoiceModal({ invoice, clients, projects, items, onSave, onClose }) {
   }
 
   return (
+    <>
     <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem'}}>
       <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:580,maxHeight:'90vh',overflowY:'auto'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.25rem'}}>
@@ -828,8 +829,6 @@ function InvoiceModal({ invoice, clients, projects, items, onSave, onClose }) {
         <ModalFooter onClose={onClose} onSave={handleSave} valid={valid} loading={loading} label={invoice ? 'Save Changes' : 'Create Invoice'} />
       </div>
     </div>
-
-    {/* Item picker modal */}
     {showItemPicker && (
       <div style={{position:'fixed',inset:0,background:'rgba(42,37,32,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:60,padding:'1rem'}}>
         <div style={{background:'#FDFAF6',borderRadius:8,boxShadow:'0 8px 40px rgba(42,37,32,0.15)',padding:'1.5rem',width:'100%',maxWidth:480,maxHeight:'70vh',overflowY:'auto'}}>
@@ -870,6 +869,7 @@ function InvoiceModal({ invoice, clients, projects, items, onSave, onClose }) {
         </div>
       </div>
     )}
+    </>
   )
 }
 
