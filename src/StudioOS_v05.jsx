@@ -285,6 +285,7 @@ export default function App() {
   const shared = { clients, projects, vendors, items, invoices, tasks, events, payments, timeLogs, fileMetadata, reload: loadAll, persistItemModal, setPersistItemModal }
 
   return (
+    <>
 <div className="h-screen flex flex-col overflow-hidden" style={{background:'#F7F3EE',fontFamily:"'DM Sans', sans-serif"}}>
       {/* Mobile warning */}
       <div style={{display: window.innerWidth < 768 ? 'block' : 'none', background:'#F5E6DE', borderBottom:'1px solid #C4622D', padding:'0.75rem 1rem', textAlign:'center', fontSize:'0.8rem', color:'#C4622D'}}>
@@ -348,7 +349,6 @@ export default function App() {
         </main>
       </div>
     </div>
-    {/* Persistent item modal - stays open across tab switches */}
     {persistItemModal && (
       <ItemModal
         item={persistItemModal === 'add' ? null : persistItemModal}
@@ -376,6 +376,7 @@ export default function App() {
         onClose={() => setPersistItemModal(null)}
       />
     )}
+    </>
   )
 }
 
