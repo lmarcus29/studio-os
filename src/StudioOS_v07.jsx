@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
-import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle, Loader, Upload, FileImage, Download, Mail, TrendingUp, Folder, FolderOpen } from 'lucide-react'
+import { LayoutDashboard, Users, FolderKanban, Package, Store, FileText, Calendar, CheckSquare, X, Trash2, Pencil, AlertCircle, Loader, Upload, FileImage, Download, Mail, TrendingUp, Folder, FolderOpen, Clock, MessageSquare, Menu } from 'lucide-react'
 import { supabase } from './supabase.js'
 import jsPDF from 'jspdf'
 
@@ -236,6 +236,7 @@ export default function App() {
   const [detailType, setDetailType] = useState(null)
   const [persistItemModal, setPersistItemModal] = useState(null)
   const [toast, setToast] = useState(null)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   function showToast(msg, type='error') {
     setToast({msg, type})
@@ -294,54 +295,97 @@ export default function App() {
 
   if (!session) return <AuthScreen />
 
-  const shared = { clients, projects, vendors, items, invoices, tasks, events, payments, timeLogs, fileMetadata, reload: loadAll, persistItemModal, setPersistItemModal, showToast }
+  async function logClientActivity(clientId, type, classification, subject, body='') {
+    if (!clientId) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('activity_log').insert({ user_id: user.id, client_id: clientId, type, classification, subject, body })
+  }
+
+  const shared = { clients, projects, vendors, items, invoices, tasks, events, payments, timeLogs, fileMetadata, reload: loadAll, persistItemModal, setPersistItemModal, showToast, logClientActivity }
+
+  const isMobile = window.innerWidth < 768
 
   return (
     <>
 <div className="h-screen flex flex-col overflow-hidden" style={{background:'#F7F3EE',fontFamily:"'DM Sans', sans-serif"}}>
-      {/* Mobile warning */}
-      <div style={{display: window.innerWidth < 768 ? 'block' : 'none', background:'#F5E6DE', borderBottom:'1px solid #C4622D', padding:'0.75rem 1rem', textAlign:'center', fontSize:'0.8rem', color:'#C4622D'}}>
-        📱 Studio OS is designed for desktop. Please use a laptop or desktop for the best experience.
-      </div>
       {/* Top bar */}
-      <header style={{height:'52px',background:'#2A2520',display:'flex',alignItems:'center',padding:'0 1.5rem',gap:'1rem',flexShrink:0,zIndex:100}}>
+      <header style={{height:'52px',background:'#2A2520',display:'flex',alignItems:'center',padding:'0 1rem',gap:'1rem',flexShrink:0,zIndex:100}}>
+        {isMobile && (
+          <button onClick={() => setMobileNavOpen(o => !o)} style={{background:'none',border:'none',cursor:'pointer',color:'#F7F3EE',display:'flex',alignItems:'center',padding:'0.25rem'}}>
+            <Menu size={20} />
+          </button>
+        )}
         <span style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.25rem',fontWeight:300,color:'#F7F3EE',letterSpacing:'0.05em'}}>
           Elegant <span style={{color:'#C4B5A0',fontStyle:'italic'}}>Interiors</span>
         </span>
         <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:'0.75rem'}}>
+          {!isMobile && (
+            <span style={{fontSize:'0.78rem',color:'#C4B5A0'}}>{session.user.email}</span>
+          )}
           <div style={{width:30,height:30,borderRadius:'50%',background:'#C4622D',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.7rem',fontWeight:600,color:'white',letterSpacing:'0.05em'}}>
             {session.user.email.substring(0, 2).toUpperCase()}
           </div>
-          <span style={{fontSize:'0.78rem',color:'#C4B5A0'}}>{session.user.email}</span>
           <button onClick={() => supabase.auth.signOut()}
             style={{fontSize:'0.72rem',color:'#8A8278',background:'transparent',border:'1px solid rgba(42,37,32,0.3)',padding:'0.25rem 0.75rem',borderRadius:4,cursor:'pointer'}}>
-            Sign Out
+            {isMobile ? '←' : 'Sign Out'}
           </button>
         </div>
       </header>
+
+      {/* Mobile nav overlay */}
+      {isMobile && mobileNavOpen && (
+        <div style={{position:'fixed',inset:0,zIndex:200,display:'flex'}}>
+          <div style={{width:220,background:'#FDFAF6',borderRight:'1px solid rgba(42,37,32,0.1)',display:'flex',flexDirection:'column',boxShadow:'4px 0 20px rgba(42,37,32,0.15)'}}>
+            <div style={{padding:'1rem 0.75rem 0.5rem',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid rgba(42,37,32,0.08)',marginBottom:'0.5rem'}}>
+              <span style={{fontFamily:"'DM Mono',monospace",fontSize:'0.55rem',letterSpacing:'0.2em',textTransform:'uppercase',color:'#C4B5A0'}}>Workspace</span>
+              <button onClick={() => setMobileNavOpen(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#8A8278'}}><X size={16}/></button>
+            </div>
+            <div style={{padding:'0 0.75rem'}}>
+              {TABS.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => { setActiveTab(id); setDetailClient(null); setDetailProject(null); setDetailType(null); setMobileNavOpen(false) }} style={{
+                  display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.65rem 0.75rem',borderRadius:6,cursor:'pointer',
+                  fontSize:'0.85rem',width:'100%',textAlign:'left',border:'none',marginBottom:'0.2rem',
+                  background: activeTab === id ? '#F5E6DE' : 'transparent',
+                  color: activeTab === id ? '#C4622D' : '#4A4540',
+                  fontWeight: activeTab === id ? 500 : 400,
+                }}>
+                  <Icon size={16} style={{flexShrink:0,opacity: activeTab === id ? 1 : 0.7}} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{flex:1,background:'rgba(42,37,32,0.4)'}} onClick={() => setMobileNavOpen(false)} />
+        </div>
+      )}
+
       {/* Body: sidebar + main */}
       <div style={{display:'flex',flex:1,overflow:'hidden'}}>
-        {/* Sidebar */}
-        <nav style={{width:200,background:'#FDFAF6',borderRight:'1px solid rgba(42,37,32,0.1)',display:'flex',flexDirection:'column',flexShrink:0,overflowY:'auto'}}>
-          <div style={{padding:'1.25rem 0.75rem 0.5rem'}}>
-            <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.2em',textTransform:'uppercase',color:'#C4B5A0',padding:'0 0.5rem',marginBottom:'0.4rem'}}>Workspace</div>
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => { setActiveTab(id); setDetailClient(null); setDetailProject(null); setDetailType(null) }} style={{
-                display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.55rem 0.75rem',borderRadius:6,cursor:'pointer',
-                fontSize:'0.82rem',width:'100%',textAlign:'left',border:'none',marginBottom:'0.15rem',transition:'all 0.15s',
-                background: activeTab === id ? '#F5E6DE' : 'transparent',
-                color: activeTab === id ? '#C4622D' : '#4A4540',
-                fontWeight: activeTab === id ? 500 : 400,
-              }}>
-                <Icon size={15} style={{flexShrink:0,opacity: activeTab === id ? 1 : 0.7}} />
-                {label}
-              </button>
-            ))}
-          </div>
-        </nav>
+        {/* Sidebar — desktop only */}
+        {!isMobile && (
+          <nav style={{width:200,background:'#FDFAF6',borderRight:'1px solid rgba(42,37,32,0.1)',display:'flex',flexDirection:'column',flexShrink:0,overflowY:'auto'}}>
+            <div style={{padding:'1.25rem 0.75rem 0.5rem'}}>
+              <div style={{fontFamily:"'DM Mono', monospace",fontSize:'0.55rem',letterSpacing:'0.2em',textTransform:'uppercase',color:'#C4B5A0',padding:'0 0.5rem',marginBottom:'0.4rem'}}>Workspace</div>
+              {TABS.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => { setActiveTab(id); setDetailClient(null); setDetailProject(null); setDetailType(null) }} style={{
+                  display:'flex',alignItems:'center',gap:'0.6rem',padding:'0.55rem 0.75rem',borderRadius:6,cursor:'pointer',
+                  fontSize:'0.82rem',width:'100%',textAlign:'left',border:'none',marginBottom:'0.15rem',transition:'all 0.15s',
+                  background: activeTab === id ? '#F5E6DE' : 'transparent',
+                  color: activeTab === id ? '#C4622D' : '#4A4540',
+                  fontWeight: activeTab === id ? 500 : 400,
+                }}>
+                  <Icon size={15} style={{flexShrink:0,opacity: activeTab === id ? 1 : 0.7}} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        )}
+
         {/* Main content */}
         <main style={{flex:1,overflowY:'auto',background:'#F7F3EE'}}>
-          <div style={{padding:'1.5rem 2rem',flex:1}}>
+          <div style={{padding: isMobile ? '1rem' : '1.5rem 2rem',flex:1}}>
             {dataLoading ? <LoadingSpinner /> : <>
               {detailType === 'client' && detailClient && <ClientDetail client={detailClient} {...shared} onBack={() => { setDetailClient(null); setDetailType(null) }} setDetailProject={(p) => { setDetailProject(p); setDetailType('project') }} />}
               {detailType === 'project' && detailProject && <ProjectDetail project={detailProject} {...shared} onBack={() => { setDetailProject(null); setDetailType(detailClient ? 'client' : null) }} backLabel={detailClient ? 'Back to Client' : 'Back to Projects'} />}
@@ -1093,7 +1137,7 @@ function Dashboard({ clients, projects, invoices, tasks, events }) {
 
   const kpis = [
     { label: 'Active Projects', value: activeProjects, sub: `${projects.filter(p => p.status === 'Complete').length} complete` },
-    { label: 'Outstanding', value: `$${totalOutstanding.toLocaleString()}`, sub: `${openInvoices} open invoice${openInvoices !== 1 ? 's' : ''}${overdueInvoices ? ` · ${overdueInvoices} overdue` : ''}` },
+    { label: 'Outstanding', value: `$${totalOutstanding.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`, sub: `${openInvoices} open invoice${openInvoices !== 1 ? 's' : ''}${overdueInvoices ? ` · ${overdueInvoices} overdue` : ''}` },
     { label: 'Active Clients', value: activeClients, sub: `${clients.filter(c => c.status === 'Lead').length} leads` },
     { label: 'Due Today', value: todayTasks, sub: `${tasks.filter(t => !t.done).length} total open tasks` },
   ]
@@ -1114,7 +1158,7 @@ function Dashboard({ clients, projects, invoices, tasks, events }) {
           <h2 style={{fontFamily:"'Cormorant Garamond', serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520',letterSpacing:'-0.01em'}}>Dashboard</h2>
           <p style={{fontSize:'0.78rem',color:'#8A8278',marginTop:'0.1rem'}}>{today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</p>
         </div>
-        <span style={{fontFamily:"'DM Mono',monospace",fontSize:'0.6rem',color:'#C4B5A0',letterSpacing:'0.1em'}}>v04</span>
+        <span style={{fontFamily:"'DM Mono',monospace",fontSize:'0.6rem',color:'#C4B5A0',letterSpacing:'0.1em'}}>v07</span>
       </div>
 
       {/* KPI row */}
@@ -1531,7 +1575,7 @@ function Items({ items, projects, vendors, clients, reload, persistItemModal, se
                   <td style={{padding:'0.75rem 1.25rem',color:'#8A8278',fontSize:'0.8rem'}}>{client?.name || '—'}</td>
                   <td style={{padding:'0.75rem 1.25rem',color:'#8A8278',fontSize:'0.8rem'}}>{project?.name || '—'}</td>
                   <td style={{padding:'0.75rem 1.25rem',color:'#8A8278',fontSize:'0.8rem'}}>{vendors.find(v => v.id === i.vendor_id)?.name || '—'}</td>
-                  <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(i.cost).toLocaleString()}</td>
+                  <td style={{padding:'0.75rem 1.25rem',color:'#4A4540'}}>${Number(i.cost).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                   <td style={{padding:'0.75rem 1.25rem'}}><Badge status={i.status}/></td>
                   <td style={{padding:'0.75rem 1.25rem'}}>
                     <div style={{display:'flex',gap:'0.4rem',alignItems:'center'}}>
@@ -2658,6 +2702,10 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
   const [activeSection, setActiveSection] = useState('projects')
   const [modal, setModal] = useState(null)
   const [showMessaging, setShowMessaging] = useState(false)
+  const [activityLogs, setActivityLogs] = useState([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
 
   const clientProjects = projects.filter(p => p.client_id === client.id)
   const clientInvoices = invoices.filter(i => i.client_id === client.id)
@@ -2667,7 +2715,55 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
   const totalPaid = clientInvoices.filter(i => i.status === 'Paid').reduce((s, i) => s + (Number(i.amount) || 0), 0)
   const outstanding = totalBilled - totalPaid
 
-  const sections = ['projects', 'invoices', 'meetings', 'tasks', 'files']
+  const sections = ['projects', 'invoices', 'meetings', 'tasks', 'files', 'activity']
+
+  async function loadActivity() {
+    setActivityLoading(true)
+    const { data } = await supabase.from('activity_log').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
+    setActivityLogs(data || [])
+    setActivityLoading(false)
+  }
+
+  useEffect(() => { if (activeSection === 'activity') loadActivity() }, [activeSection])
+
+  async function logActivity(type, classification, subject, body='') {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('activity_log').insert({ user_id: user.id, client_id: client.id, type, classification, subject, body })
+  }
+
+  async function saveNote() {
+    if (!noteText.trim()) return
+    setSavingNote(true)
+    await logActivity('note', 'User Note', noteText.trim())
+    setNoteText('')
+    await loadActivity()
+    setSavingNote(false)
+  }
+
+  async function deleteLog(id) {
+    await supabase.from('activity_log').delete().eq('id', id)
+    loadActivity()
+  }
+
+  const typeIcon = (type) => {
+    if (type === 'email') return <Mail size={13} style={{color:'#B8963E'}} />
+    if (type === 'sms') return <MessageSquare size={13} style={{color:'#6B7C6E'}} />
+    if (type === 'task') return <CheckSquare size={13} style={{color:'#6B7C6E'}} />
+    if (type === 'payment') return <TrendingUp size={13} style={{color:'#6B7C6E'}} />
+    if (type === 'invoice') return <FileText size={13} style={{color:'#B8963E'}} />
+    if (type === 'file') return <FileImage size={13} style={{color:'#8A8278'}} />
+    return <MessageSquare size={13} style={{color:'#C4622D'}} />
+  }
+
+  const typeColor = (type) => {
+    if (type === 'email') return {background:'#F5EDD8',color:'#B8963E'}
+    if (type === 'sms') return {background:'#EBF0EC',color:'#6B7C6E'}
+    if (type === 'task') return {background:'#EBF0EC',color:'#6B7C6E'}
+    if (type === 'payment') return {background:'#EBF0EC',color:'#6B7C6E'}
+    if (type === 'invoice') return {background:'#F5EDD8',color:'#B8963E'}
+    if (type === 'note') return {background:'#F5E6DE',color:'#C4622D'}
+    return {background:'#E8E0D5',color:'#8A8278'}
+  }
 
   return (
     <div>
@@ -2717,7 +2813,7 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
             <p style={{fontSize:'0.78rem',color:'#4A4540',marginBottom:'0.2rem',textTransform:'capitalize'}}>{client.billing_type || 'Commission'}</p>
             {client.commission_rate > 0 && <p style={{fontSize:'0.72rem',color:'#8A8278'}}>{client.commission_rate}% commission</p>}
             {client.hourly_rate > 0 && <p style={{fontSize:'0.72rem',color:'#8A8278'}}>${client.hourly_rate}/hr</p>}
-            {client.retainer_balance > 0 && <p style={{fontSize:'0.72rem',color:'#6B7C6E',marginTop:'0.2rem'}}>Retainer: ${Number(client.retainer_balance).toLocaleString()}</p>}
+            {client.retainer_balance > 0 && <p style={{fontSize:'0.72rem',color:'#6B7C6E',marginTop:'0.2rem'}}>Retainer: ${Number(client.retainer_balance).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p>}
           </div>
         </div>
 
@@ -2867,6 +2963,60 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
         />
       )}
 
+      {/* Activity / Audit Trail section */}
+      {activeSection === 'activity' && (
+        <div>
+          {/* Add note */}
+          <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem',marginBottom:'1.25rem'}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.6rem'}}>Add Note</div>
+            <div style={{display:'flex',gap:'0.75rem',alignItems:'flex-end'}}>
+              <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={2} placeholder="Log a call, meeting note, or any communication…"
+                style={{flex:1,padding:'0.5rem 0.75rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,background:'#F7F3EE',color:'#2A2520',fontSize:'0.82rem',resize:'vertical',fontFamily:"'DM Sans',sans-serif"}} />
+              <button onClick={saveNote} disabled={!noteText.trim() || savingNote}
+                style={{background: noteText.trim() && !savingNote ? '#C4622D' : '#C4B5A0',color:'white',padding:'0.5rem 1rem',borderRadius:4,fontSize:'0.78rem',border:'none',cursor: noteText.trim() ? 'pointer' : 'not-allowed',display:'flex',alignItems:'center',gap:'0.4rem',flexShrink:0,height:36}}>
+                {savingNote && <Loader size={12} className="animate-spin" />} Save Note
+              </button>
+            </div>
+          </div>
+
+          {/* Log entries */}
+          <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'0.9rem 1.25rem',borderBottom:'1px solid rgba(42,37,32,0.06)'}}>
+              <span style={{fontFamily:"'DM Mono',monospace",fontSize:'0.58rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278'}}>History & Communications</span>
+            </div>
+            {activityLoading ? <div style={{padding:'2rem',textAlign:'center'}}><Loader size={18} className="animate-spin" style={{color:'#C4622D'}} /></div>
+            : activityLogs.length === 0
+            ? <p style={{color:'#8A8278',fontSize:'0.82rem',padding:'2rem',textAlign:'center'}}>No activity recorded yet</p>
+            : <div>
+                {activityLogs.map(log => (
+                  <div key={log.id} style={{display:'flex',gap:'1rem',padding:'0.9rem 1.25rem',borderBottom:'1px solid rgba(42,37,32,0.04)',alignItems:'flex-start'}}>
+                    <div style={{flexShrink:0,marginTop:2}}>{typeIcon(log.type)}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'0.6rem',marginBottom:'0.2rem',flexWrap:'wrap'}}>
+                        <span style={{...typeColor(log.type),padding:'0.1rem 0.5rem',borderRadius:8,fontSize:'0.65rem',fontFamily:"'DM Mono',monospace"}}>{log.classification}</span>
+                        {log.subject && <span style={{fontSize:'0.82rem',color:'#2A2520',fontWeight:500}}>{log.subject}</span>}
+                      </div>
+                      {log.body && <p style={{fontSize:'0.78rem',color:'#8A8278',marginTop:'0.2rem',lineHeight:1.5,whiteSpace:'pre-wrap'}}>{log.body}</p>}
+                    </div>
+                    <div style={{flexShrink:0,textAlign:'right'}}>
+                      <div style={{fontSize:'0.7rem',color:'#C4B5A0',fontFamily:"'DM Mono',monospace",whiteSpace:'nowrap'}}>
+                        {new Date(log.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                      </div>
+                      <div style={{fontSize:'0.65rem',color:'#C4B5A0',fontFamily:"'DM Mono',monospace"}}>
+                        {new Date(log.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+                      </div>
+                      {log.type === 'note' && (
+                        <button onClick={() => deleteLog(log.id)} style={{color:'#C4B5A0',background:'none',border:'none',cursor:'pointer',display:'flex',marginLeft:'auto',marginTop:'0.25rem'}}><Trash2 size={11} /></button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            }
+          </div>
+        </div>
+      )}
+
       {modal && <ClientModal client={modal} onSave={async (form, setLoading) => {
         setLoading(true)
         await supabase.from('clients').update(form).eq('id', modal.id)
@@ -2874,7 +3024,9 @@ function ClientDetail({ client, projects, invoices, tasks, events, payments, cli
         setModal(null)
         reload()
       }} onClose={() => setModal(null)} />}
-      {showMessaging && <ClientMessaging client={client} onClose={() => setShowMessaging(false)} />}
+      {showMessaging && <ClientMessaging client={client} onClose={() => setShowMessaging(false)} onEmailSent={async (subject, body) => {
+        await logActivity('email', 'Email', subject, body)
+      }} />}
     </div>
   )
 }
@@ -3602,6 +3754,11 @@ function InvoicePanel({ invoices, payments, projects, clients, items, reload }) 
                                 await supabase.from('payments').insert({...form,invoice_id:i.id,user_id})
                                 const newPaid=totalPaid+Number(form.amount)
                                 if(newPaid>=Number(i.amount||0)) await supabase.from('invoices').update({status:'Paid'}).eq('id',i.id)
+                                // Log to activity
+                                const clientId = i.client_id
+                                if (clientId) {
+                                  await supabase.from('activity_log').insert({ user_id, client_id: clientId, type:'payment', classification:'Payment', subject:`Payment of $${Number(form.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} logged`, body:`Invoice: ${i.num} · Method: ${form.method}${form.notes?' · '+form.notes:''}` })
+                                }
                                 reload()
                               }}/>
                             </div>
@@ -3622,7 +3779,7 @@ function InvoicePanel({ invoices, payments, projects, clients, items, reload }) 
 }
 
 // ── CLIENT MESSAGING ──────────────────────────────────────
-function ClientMessaging({ client, onClose }) {
+function ClientMessaging({ client, onClose, onEmailSent }) {
   const [mode, setMode] = useState('email') // 'email' | 'sms'
   const [to, setTo] = useState('primary') // 'primary' | 'secondary' | 'both'
   const [subject, setSubject] = useState('')
@@ -3643,10 +3800,12 @@ function ClientMessaging({ client, onClose }) {
     if (!body.trim()) return
     setSending(true)
     const recipients = getRecipients()
+    const finalSubject = subject || `Message from Elegant Interiors`
     const html = `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#F7F3EE"><div style="background:#2A2520;padding:28px 32px;border-left:4px solid #B8963E"><h1 style="color:#F7F3EE;margin:0;font-size:22px;font-weight:400">Elegant Interiors</h1></div><div style="background:#FDFAF6;padding:32px;border:1px solid #E8E0D5;border-top:none"><p style="color:#2A2520;font-size:15px;margin:0 0 16px">Dear ${client.name},</p><div style="color:#4A4540;font-size:14px;line-height:1.8;white-space:pre-wrap">${body}</div><p style="color:#8A8278;font-size:11px;font-family:monospace;margin:24px 0 0;padding-top:16px;border-top:1px solid #E8E0D5">Elegant Interiors · Studio OS</p></div></div>`
     for (const email of recipients) {
-      await sendEmail(email, subject || `Message from Elegant Interiors`, html)
+      await sendEmail(email, finalSubject, html)
     }
+    if (onEmailSent) await onEmailSent(finalSubject, body)
     setSending(false)
     setSent(true)
     setTimeout(() => { setSent(false); setBody(''); setSubject('') }, 2000)
@@ -3717,19 +3876,31 @@ function ClientMessaging({ client, onClose }) {
 
 // ── REVENUE REPORT ─────────────────────────────────────────
 function RevenueReport({ clients, projects, invoices, payments, items }) {
-  const [period, setPeriod] = useState('month') // 'month' | 'quarter' | 'year'
-
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth()
-  const currentQ = Math.floor(currentMonth / 3)
+
+  const [period, setPeriod] = useState('month') // 'month' | 'year' | 'alltime'
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [selectedMonthYear, setSelectedMonthYear] = useState(currentYear)
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+
+  // Build year options from invoice data
+  const allYears = [...new Set([
+    ...invoices.map(i => (i.due || i.created_at || '').substring(0, 4)),
+    ...payments.map(p => (p.date || '').substring(0, 4)),
+  ].filter(Boolean).map(Number))].sort((a, b) => b - a)
+  if (!allYears.includes(currentYear)) allYears.unshift(currentYear)
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
   function inPeriod(dateStr) {
     if (!dateStr) return false
-    const d = new Date(dateStr + 'T00:00:00')
-    if (period === 'year') return d.getFullYear() === currentYear
-    if (period === 'quarter') return d.getFullYear() === currentYear && Math.floor(d.getMonth() / 3) === currentQ
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth
+    const d = new Date(dateStr.substring(0,10) + 'T00:00:00')
+    if (period === 'alltime') return true
+    if (period === 'year') return d.getFullYear() === selectedYear
+    return d.getFullYear() === selectedMonthYear && d.getMonth() === selectedMonth
   }
 
   const periodInvoices = invoices.filter(i => inPeriod(i.due) || inPeriod(i.created_at?.split('T')[0]))
@@ -3763,16 +3934,17 @@ function RevenueReport({ clients, projects, invoices, payments, items }) {
     }
   }).filter(c => c.billed > 0 || c.collected > 0).sort((a, b) => b.billed - a.billed)
 
-  // Monthly breakdown for the year
+  // Monthly breakdown — for the selected year (or current year if alltime)
+  const chartYear = period === 'year' ? selectedYear : period === 'alltime' ? currentYear : selectedMonthYear
   const months = Array.from({length: 12}, (_, m) => {
-    const label = new Date(currentYear, m, 1).toLocaleString('default', {month:'short'})
+    const label = MONTHS[m]
     const mInvoices = invoices.filter(i => {
       const d = new Date((i.due || i.created_at || '').split('T')[0] + 'T00:00:00')
-      return d.getFullYear() === currentYear && d.getMonth() === m
+      return d.getFullYear() === chartYear && d.getMonth() === m
     })
     const mPayments = payments.filter(p => {
       const d = new Date((p.date || '').split('T')[0] + 'T00:00:00')
-      return d.getFullYear() === currentYear && d.getMonth() === m
+      return d.getFullYear() === chartYear && d.getMonth() === m
     })
     return {
       label,
@@ -3783,32 +3955,59 @@ function RevenueReport({ clients, projects, invoices, payments, items }) {
   const maxMonthVal = Math.max(...months.map(m => Math.max(m.billed, m.collected)), 1)
 
   const periodLabel = period === 'month'
-    ? now.toLocaleString('default', {month:'long', year:'numeric'})
-    : period === 'quarter'
-    ? `Q${currentQ + 1} ${currentYear}`
-    : `${currentYear}`
+    ? `${MONTHS_LONG[selectedMonth]} ${selectedMonthYear}`
+    : period === 'year'
+    ? `${selectedYear}`
+    : 'All Time'
+
+  const btnStyle = (active) => ({
+    padding:'0.35rem 0.75rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.72rem',
+    background: active ? '#2A2520' : 'transparent', color: active ? 'white' : '#4A4540',
+    cursor:'pointer', fontFamily:"'DM Mono',monospace", textTransform:'uppercase', letterSpacing:'0.05em'
+  })
 
   const statCard = (label, value, sub, color='#2A2520') => (
     <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem 1.5rem'}}>
       <div style={{fontFamily:"'DM Mono',monospace",fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'0.5rem'}}>{label}</div>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'2rem',fontWeight:300,color,lineHeight:1}}>${Number(value).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'2rem',fontWeight:300,color,lineHeight:1}}>${Number(value).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
       {sub && <div style={{fontSize:'0.72rem',color:'#8A8278',marginTop:'0.35rem'}}>{sub}</div>}
     </div>
   )
 
   return (
     <div>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'1.5rem',flexWrap:'wrap',gap:'1rem'}}>
         <div>
           <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'1.6rem',fontWeight:300,color:'#2A2520'}}>Revenue</h2>
           <p style={{fontSize:'0.78rem',color:'#8A8278',marginTop:'0.15rem'}}>{periodLabel}</p>
         </div>
-        <div style={{display:'flex',gap:'0.4rem'}}>
-          {['month','quarter','year'].map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{padding:'0.35rem 0.75rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.72rem',background:period===p?'#2A2520':'transparent',color:period===p?'white':'#4A4540',cursor:'pointer',fontFamily:"'DM Mono',monospace",textTransform:'uppercase',letterSpacing:'0.05em'}}>
-              {p}
-            </button>
-          ))}
+        <div style={{display:'flex',alignItems:'center',gap:'0.75rem',flexWrap:'wrap'}}>
+          {/* Period selector buttons */}
+          <div style={{display:'flex',gap:'0.4rem'}}>
+            <button onClick={() => setPeriod('month')} style={btnStyle(period==='month')}>Month</button>
+            <button onClick={() => setPeriod('year')} style={btnStyle(period==='year')}>Year</button>
+            <button onClick={() => setPeriod('alltime')} style={btnStyle(period==='alltime')}>All Time</button>
+          </div>
+          {/* Month picker */}
+          {period === 'month' && (
+            <div style={{display:'flex',gap:'0.4rem',alignItems:'center'}}>
+              <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}
+                style={{padding:'0.3rem 0.5rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.75rem',background:'#FDFAF6',color:'#2A2520',fontFamily:"'DM Sans',sans-serif"}}>
+                {MONTHS_LONG.map((m,i) => <option key={m} value={i}>{m}</option>)}
+              </select>
+              <select value={selectedMonthYear} onChange={e => setSelectedMonthYear(Number(e.target.value))}
+                style={{padding:'0.3rem 0.5rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.75rem',background:'#FDFAF6',color:'#2A2520',fontFamily:"'DM Sans',sans-serif"}}>
+                {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          )}
+          {/* Year picker */}
+          {period === 'year' && (
+            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}
+              style={{padding:'0.3rem 0.5rem',border:'1px solid rgba(42,37,32,0.15)',borderRadius:4,fontSize:'0.75rem',background:'#FDFAF6',color:'#2A2520',fontFamily:"'DM Sans',sans-serif"}}>
+              {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
         </div>
       </div>
 
@@ -3823,7 +4022,7 @@ function RevenueReport({ clients, projects, invoices, payments, items }) {
       <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr',gap:'1.25rem',marginBottom:'1.25rem'}}>
         {/* Monthly bar chart */}
         <div style={{background:'#FDFAF6',border:'1px solid rgba(42,37,32,0.1)',borderRadius:8,padding:'1.25rem'}}>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'1rem'}}>Monthly · {currentYear}</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'#8A8278',marginBottom:'1rem'}}>Monthly · {chartYear}</div>
           <div style={{display:'flex',alignItems:'flex-end',gap:'0.4rem',height:120}}>
             {months.map((m, i) => (
               <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2,height:'100%',justifyContent:'flex-end'}}>
@@ -3831,7 +4030,7 @@ function RevenueReport({ clients, projects, invoices, payments, items }) {
                   <div title={`Billed: $${m.billed.toLocaleString()}`} style={{width:'100%',background:'#C4622D',borderRadius:'2px 2px 0 0',height:`${Math.round((m.billed/maxMonthVal)*100)}%`,minHeight:m.billed>0?2:0,opacity:0.85}}/>
                   <div title={`Collected: $${m.collected.toLocaleString()}`} style={{width:'100%',background:'#6B7C6E',borderRadius:'2px 2px 0 0',height:`${Math.round((m.collected/maxMonthVal)*100)}%`,minHeight:m.collected>0?2:0,opacity:0.7}}/>
                 </div>
-                <div style={{fontFamily:"'DM Mono',monospace",fontSize:'0.5rem',color: i===currentMonth?'#C4622D':'#C4B5A0',textTransform:'uppercase'}}>{m.label}</div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:'0.5rem',color: (period==='month' && i===selectedMonth && chartYear===selectedMonthYear) ? '#C4622D' : i===currentMonth && chartYear===currentYear ? '#B8963E' : '#C4B5A0',textTransform:'uppercase'}}>{m.label}</div>
               </div>
             ))}
           </div>
