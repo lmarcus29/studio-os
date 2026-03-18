@@ -1,1 +1,1 @@
-export { default } from './StudioOS_v05.jsx'
+export { default } from './StudioOS_v06.jsx'
