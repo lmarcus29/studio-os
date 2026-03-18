@@ -153,18 +153,19 @@ function AuthScreen() {
     setError('')
     setMessage('')
     setLoading(true)
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
-    } else if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setError(error.message)
-      else setMessage('Check your email to confirm your account.')
-    } else {
-      const { error } = await supabase.auth.resetPasswordForEmail(email)
-      if (error) setError(error.message)
-      else setMessage('Password reset email sent.')
-    }
+    try {
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) setError(error.message)
+      } else if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email, password })
+        if (error) setError(error.message)
+        else setMessage('Check your email to confirm your account.')
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email)
+        if (error) setError(error.message)
+        else setMessage('Password reset email sent.')
+      }
     } catch(err) {
       console.error('Load error:', err)
       if (typeof showToast === 'function') showToast('Connection error. Please refresh.')
