@@ -311,6 +311,8 @@ export default function App() {
     setShowOnboarding(false)
     loadAll()
   }
+
+  async function logClientActivity(clientId, type, classification, subject, body='') {
     if (!clientId) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
