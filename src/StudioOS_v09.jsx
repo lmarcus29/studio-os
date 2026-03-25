@@ -1296,7 +1296,7 @@ function Dashboard({ clients, projects, invoices, tasks, events }) {
   )
 }
 
-function Clients({ clients, projects, invoices, tasks, events, payments, reload, setDetailClient }) {
+function Clients({ clients, projects, invoices, tasks, events, payments, reload, setDetailClient, showToast }) {
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -1310,13 +1310,27 @@ function Clients({ clients, projects, invoices, tasks, events, payments, reload,
 
 async function handleSave(form, setLoading) {
   setLoading(true)
-  const user_id = (await supabase.auth.getUser()).data.user.id
+  const { data: { user } } = await supabase.auth.getUser()
+  const user_id = user.id
+  const data = {
+    ...form,
+    commission_rate: Number(form.commission_rate) || null,
+    hourly_rate: Number(form.hourly_rate) || null,
+    retainer_balance: Number(form.retainer_balance) || 0,
+  }
+  let error
   if (modal === 'add') {
-    await supabase.from('clients').insert({ ...form, user_id })
+    const res = await supabase.from('clients').insert({ ...data, user_id })
+    error = res.error
   } else {
-    await supabase.from('clients').update({ ...form }).eq('id', modal.id)
+    const res = await supabase.from('clients').update(data).eq('id', modal.id)
+    error = res.error
   }
   setLoading(false)
+  if (error) {
+    showToast('Could not save client: ' + error.message)
+    return
+  }
   setModal(null)
   reload()
 }
