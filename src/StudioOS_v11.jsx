@@ -2843,7 +2843,7 @@ function CalendarView({ events, reload, clients }) {
   )
 }
 
-function ClientDetail({ client, projects, invoices, tasks, events, payments, clients, fileMetadata, items, reload, onBack, setDetailProject }) {
+function ClientDetail({ client, projects, invoices, tasks, events, payments, clients, fileMetadata, items, reload, onBack, setDetailProject, studioProfile, showToast, logClientActivity }) {
   const [activeSection, setActiveSection] = useState('projects')
   const [modal, setModal] = useState(null)
   const [showMessaging, setShowMessaging] = useState(false)
@@ -4048,7 +4048,7 @@ function ClientMessaging({ client, onClose, onEmailSent, studioProfile }) {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
-  const studioName = studioProfile?.studio_name || 'Elegant Interiors'
+  const studioName = (studioProfile && studioProfile.studio_name) ? studioProfile.studio_name : 'Elegant Interiors'
   const hasPrimary = !!(client.email)
   const hasSecondary = !!(client.email2)
 
@@ -4512,18 +4512,27 @@ function StudioSettings({ studioProfile, reload, showToast }) {
 // ── AI HELPERS ─────────────────────────────────────────────
 
 async function callClaude(systemPrompt, userMessage) {
-  const res = await fetch(WORKER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'claude',
-      system: systemPrompt,
-      message: userMessage
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'claude',
+        system: systemPrompt,
+        message: userMessage
+      })
     })
-  })
-  const data = await res.json()
-  if (data.error) throw new Error(data.error.message)
-  return data.content?.[0]?.text || ''
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Worker returned ${res.status}: ${text}`)
+    }
+    const data = await res.json()
+    if (data.error) throw new Error(JSON.stringify(data.error))
+    return data.content?.[0]?.text || ''
+  } catch (e) {
+    console.error('callClaude error:', e)
+    throw e
+  }
 }
 
 // ── AI EMAIL COMPOSER ──────────────────────────────────────
@@ -4532,7 +4541,7 @@ function AIEmailComposer({ client, studioProfile, onUseEmail, onClose }) {
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const studioName = studioProfile?.studio_name || 'Elegant Interiors'
+  const studioName = (studioProfile && studioProfile.studio_name) ? studioProfile.studio_name : 'Elegant Interiors'
 
   async function handleGenerate() {
     if (!intent.trim()) return
@@ -4541,12 +4550,13 @@ function AIEmailComposer({ client, studioProfile, onUseEmail, onClose }) {
     setResult('')
     try {
       const text = await callClaude(
-        `You are a professional email writer for ${studioName}, an interior design studio. Write polished, warm, professional client emails. The tone should be refined but personal — not corporate. Sign off with just the studio name, no additional signature. Return only the email body text with no subject line, no greeting (we add that separately), and no closing name — just the message body paragraphs.`,
-        `Write a client email for ${client.name} based on this intent: ${intent.trim()}`
+        `You are a professional email writer for ${studioName}, an interior design studio. Write polished, warm, professional client emails. The tone should be refined but personal — not corporate. Return only the email body text — no subject line, no greeting, no closing signature. Just the message body paragraphs.`,
+        `Write a client email for ${client ? client.name : 'the client'} based on this intent: ${intent.trim()}`
       )
       setResult(text.trim())
     } catch(e) {
-      setError('Could not generate email. Please check your API connection.')
+      console.error('AI Email error:', e)
+      setError('Could not generate email: ' + (e.message || 'Unknown error. Check console for details.'))
     }
     setLoading(false)
   }
@@ -4607,7 +4617,7 @@ function AIProjectBrief({ client, projects, studioProfile, onClose }) {
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const studioName = studioProfile?.studio_name || 'Elegant Interiors'
+  const studioName = (studioProfile && studioProfile.studio_name) ? studioProfile.studio_name : 'Elegant Interiors'
   const clientProjects = projects.filter(p => p.client_id === client.id)
 
   async function handleGenerate() {
@@ -4686,7 +4696,7 @@ function AIProcurementAssistant({ client, project, studioProfile, onClose }) {
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const studioName = studioProfile?.studio_name || 'Elegant Interiors'
+  const studioName = (studioProfile && studioProfile.studio_name) ? studioProfile.studio_name : 'Elegant Interiors'
 
   async function handleGenerate() {
     if (!roomDesc.trim()) return
