@@ -4510,17 +4510,15 @@ function StudioSettings({ studioProfile, reload, showToast }) {
 }
 
 // ── AI HELPERS ─────────────────────────────────────────────
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
 
 async function callClaude(systemPrompt, userMessage) {
-  const res = await fetch(ANTHROPIC_API_URL, {
+  const res = await fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      type: 'claude',
       system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }]
+      message: userMessage
     })
   })
   const data = await res.json()
